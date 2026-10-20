@@ -8,6 +8,44 @@
 안전하게 적용할 수 있다. 원본과 배포물의 경계는
 [`docs/framework-distribution.md`](docs/framework-distribution.md)를 따른다.
 
+## 빠른 시작 (CLI)
+
+npm 게시 후에는 `npx`로 한 줄 적용할 수 있다.
+
+```bash
+# 신규 프로젝트 — 배포 템플릿 골격 생성 후 다음 단계 안내 출력
+npx @gon1942/ai-dev-standard init my-project
+
+# 기존 프로젝트 — 분석 → 생성/보존/병합제안/제외 제안 → 승인 후 골격만 생성
+cd existing-project
+npx @gon1942/ai-dev-standard apply
+
+# 적용된 프로젝트의 누락 골격 보강 (기존 파일 유지)
+npx @gon1942/ai-dev-standard update
+
+# 골격 검사 + 프로젝트 준비 상태 검사
+npx @gon1942/ai-dev-standard doctor
+```
+
+`apply`는 기존 파일을 절대 덮어쓰지 않는다. 분석 결과를 제안으로 보여주고
+확인(또는 `--yes`)을 받은 뒤 없는 골격만 생성한다.
+
+npm 게시 전 로컬에서는 저장소 루트에서 동일하게 동작한다:
+
+```bash
+node bin/ai-dev-standard.js init /path/to/my-project
+```
+
+npm 게시는 유지보수자가 수행한다 (npm에서 `@gon1942` 스코프 소유 필요):
+
+```bash
+npm run build:template   # 배포 템플릿 빌드 (prepublishOnly에서도 자동 실행)
+npm publish --access public
+```
+
+CLI 없이 수동 적용하는 방법은 아래 "새 프로젝트에 적용하기"와
+"기존 프로젝트에 적용하기" 절을 따른다.
+
 ## 왜 필요한가
 
 AI 코딩 도구를 여러 개 쓰거나, 사람과 AI가 같은 프로젝트에서 작업할 때 발생하는 문제를
@@ -90,6 +128,9 @@ Release 아카이브로 배포한다. 이 원본 저장소를 GitHub의 `Use thi
 
 ## 새 프로젝트에 적용하기
 
+> CLI로 한 줄 적용: `npx @gon1942/ai-dev-standard init my-project`
+> (게시 전 로컬: 저장소 루트에서 `node bin/ai-dev-standard.js init <경로>`)
+
 1. GitHub Template로 만든 새 저장소를 사용하거나, 승인된 배포 템플릿을 프로젝트 루트에 적용
 2. `.ai-dev-standard.env`에서 `AI_DEV_STANDARD_MODE=active`로 바꾸고 필수 검사를 선택
 3. **PLACEHOLDER 검색** (`grep -rn PLACEHOLDER`) 후 스택에 맞게 수정:
@@ -122,6 +163,10 @@ Release 아카이브로 배포한다. 이 원본 저장소를 GitHub의 `Use thi
 `scripts/test.sh`는 해당 프로젝트의 테스트 도구와 명령을 계속 사용한다.
 
 ## 기존 프로젝트에 적용하기 (온보딩)
+
+> CLI로 적용 분석·승인·골격 생성을 한 번에: 대상 프로젝트 루트에서
+> `npx @gon1942/ai-dev-standard apply` (게시 전 로컬: 저장소 루트에서
+> `node bin/ai-dev-standard.js apply --project-dir <경로>`)
 
 에이전트는 프레임워크를 처음 적용하거나 구조 이상·사용자 재분석 요청이 있을 때만 다음을
 실행한다. 일반 기능 요청마다 이 절차를 반복하지 않는다.
