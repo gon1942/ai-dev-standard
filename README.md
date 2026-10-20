@@ -276,3 +276,8 @@ scripts/build-framework-template.sh --output /tmp/ai-dev-standard-template
 ## 기여
 
 기여 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 따른다.
+
+## 라이선스
+
+이 프로젝트는 [MIT License](LICENSE)로 배포된다. 적용 대상 프로젝트의 라이선스는
+각 프로젝트가 독립적으로 선택한다.
