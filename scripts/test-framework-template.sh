@@ -89,6 +89,19 @@ if [ -n "$absolute_path_matches" ]; then
   fail '배포 템플릿에 원본 저장소 절대 경로가 남아 있습니다'
 fi
 
+# 배포된 전역 hook은 개발자의 원본 경로가 아니라 적용된 프로젝트 내부 runner를
+# 사용해야 한다. 여기서는 전역 원본 경로 환경값 없이 실제로 Session Preflight를
+# 실행해 그 동작을 확인한다.
+(
+  unset AI_DEV_STANDARD_ROOT
+  cd "$TARGET"
+  bash global-hooks/session-start.sh
+) > "$TMP_ROOT/session-hook-output"
+grep -Fq 'AI Dev Standard Session Preflight completed:' "$TMP_ROOT/session-hook-output" || \
+  fail '배포 템플릿의 Session hook이 프로젝트 내부 Preflight를 실행하지 못했습니다'
+[ -f "$TARGET/.ai-dev-standard/session-preflight.json" ] || \
+  fail '배포 템플릿의 Session hook이 세션 검사 결과를 기록하지 못했습니다'
+
 mkdir "$NONEMPTY"
 : > "$NONEMPTY/existing-file"
 if bash "$ROOT/scripts/build-framework-template.sh" --output "$NONEMPTY" >/dev/null 2>&1; then
