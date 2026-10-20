@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/verify.sh*)",
+      "Bash(scripts/verify-plan.sh*)",
+      "Bash(scripts/new-product-spec.sh*)",
+      "Bash(scripts/new-exec-plan.sh*)",
+      "Bash(scripts/new-improvement-candidate.sh*)",
+      "Bash(scripts/check-framework.sh*)",
+      "Bash(scripts/analyze-project.sh*)",
+      "Bash(scripts/lint.sh*)",
+      "Bash(scripts/test.sh*)",
+      "Bash(scripts/review.sh*)",
+      "Read(**)",
+      "Grep(**)",
+      "Glob(**)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Read(.env*)",
+      "Read(**/credentials*)",
+      "Read(**/*.pem)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(scripts/bootstrap-framework.sh*)",
+      "Bash(scripts/decide-improvement.sh*)",
+      "Write(**)",
+      "Edit(**)"
+    ]
+  }
+}

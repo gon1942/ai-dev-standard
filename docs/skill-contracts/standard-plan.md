@@ -1,0 +1,52 @@
+# Standard Plan Contract
+
+## Entry conditions
+
+- Session Preflight가 `PASS` 또는 `WARNING`이며 `can_plan=true`다.
+- 사용자 작업 요청이 있다.
+
+## Required actions
+
+1. 요청 유형(신규 기능, 수정, 버그, 리팩터링, 성능)과 작업 깊이를 분류해 Product Spec의
+   `- 유형:`·`- 깊이:` 필드에 기록한다. 깊이는 에이전트가 제안하고 사람이 명세 승인 시 확정한다.
+   - 단순: 명확한 한두 파일 수정 — 짧은 명세와 짧은 계획(구현 작업 표 생략 가능)
+   - 일반: 기본 절차 — 구현 작업 표와 Self-Review 필수
+   - 설계 필요: 신규 기능·UX/정책 변경·복수 구현안·영향 범위 큰 변경 —
+     문제·목표·비목표·대안 비교·세부 작업 분해 필수
+2. 관련 코드·문서·테스트를 읽고, 모호하면 구현 전에 질문한다(기법은
+   `docs/development-workflow.md` 3.1절).
+   - 질문으로 확정한 도메인 용어·정책은 다시 등장할 가능성이 크면
+     `docs/design-docs/project-context.md` 반영을 함께 제안한다.
+3. 문제·목표(문제·영향·목표·성공 기준)와 비목표를 Product Spec에 기록한다.
+   버그도 짧은 문제·목표를 유지하되, 맥락은 문제·목표에, 재현 기술은
+   `## 재현 조건`에 남겨 중복하지 않는다.
+   재현 가능한 버그는 동일 입력·반복 재현 절차·기대 결과를 모두, 재현이 불가능한
+   버그는 재현 불가 사유와 대체 판정 방법을 모두 명시한다.
+4. `scripts/new-product-spec.sh`로 Product Spec 초안을 만들고 범위와 AC를 채운다.
+   구현 방식이 여럿 가능하면 각 안의 장단점과 선택 사유를 대안 표에 남긴다.
+5. 사람의 Product Spec 승인을 받아 상태를 `approved`로 기록한다.
+6. `scripts/new-exec-plan.sh <승인된-명세>`로 Exec Plan을 만들고 구현 범위, 영향 파일,
+   구현 작업 표(순서·변경 대상·변경 내용·인터페이스·검증 명령·기대 증거·AC 연결),
+   AC별 검증 방법, 회귀 대상, 실패 대응을 채운다.
+   - 확실하지 않은 항목은 지어내지 않고 `조사 필요`로 남기고, 조사 결과로 계획을
+     갱신해 다시 승인받는다.
+   - 소스·문서·테스트 읽기는 승인 전에 가능하지만, 운영 데이터 조회·로그 수집·
+     계측 삽입처럼 상태나 권한에 영향을 주는 조사는 별도 승인이 필요하다.
+7. Exec Plan 승인 전 Self-Review를 수행한다.
+   - 명세의 각 요구사항이 하나 이상의 AC로 표현됐는가
+   - 각 AC가 하나 이상의 구현 작업·검증 방법에 연결됐는가
+   - 테스트는 기존 테스트 경계를 재사용하는가 (`docs/testing-policy.md` 2.1절)
+   - 명령·기대 결과가 실제 프로젝트 설정에 근거하는가
+   - 빈칸·모순·계획 밖 변경·근거 없는 가정이 없는가
+8. 사람이 Exec Plan을 승인하면 `- 승인: approved`로 기록하고 `scripts/validate-plan.sh <계획>`을 실행한다.
+
+## Outputs
+
+- 승인된 Product Spec
+- `validate-plan.sh`를 통과한 승인 Exec Plan
+
+## Exit conditions / next stage
+
+- 모든 AC가 명확하고 Exec Plan의 검증 계획에 연결돼야 한다.
+- `PASS`이고 Session Preflight의 `can_code=true`일 때만 `standard-implement`로 진행한다.
+- `WARNING(can_code=false)`이면 계획은 보관하되 검증 명령을 확정할 때까지 구현하지 않는다.

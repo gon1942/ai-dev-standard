@@ -1,0 +1,12 @@
+---
+name: plan
+description: 승인 가능한 Product Spec과 Exec Plan을 만드는 표준 계획 어댑터
+---
+
+# Plan Adapter
+
+규칙·입력·출력·게이트의 SSOT는 `docs/skill-contracts/standard-plan.md`다.
+해당 계약과 `docs/development-workflow.md`를 읽고 그대로 수행한다.
+
+도구별 임시 계획 파일은 공식 산출물이 아니다. 공식 산출물은 `docs/product-specs/`와
+`docs/exec-plans/active/`이며, Implement 전 `scripts/validate-plan.sh <계획>`을 통과해야 한다.

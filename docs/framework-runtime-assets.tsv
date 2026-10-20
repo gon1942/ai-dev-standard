@@ -1,0 +1,31 @@
+# scope	path	description
+# target-script와 target-hook은 bootstrap 대상에 복사하고 check-framework가 검사한다.
+# repository-test는 이 프레임워크 원본의 회귀 테스트 전용이며 대상 프로젝트에 복사하지 않는다.
+target-script	scripts/lint.sh	프로젝트 lint 어댑터
+target-script	scripts/test.sh	프로젝트 test 어댑터
+target-script	scripts/verify.sh	통합 검증 진입점
+target-script	scripts/new-product-spec.sh	제품 명세 생성
+target-script	scripts/new-exec-plan.sh	실행 계획 생성
+target-script	scripts/validate-plan.sh	Implement 전 계획 검증
+target-script	scripts/verify-plan.sh	계획 기반 검증 진입점
+target-script	scripts/review.sh	독립 리뷰 체크리스트
+target-script	scripts/converge-plan.sh	최종 증거 수렴 판정
+target-script	scripts/complete-exec-plan.sh	사람 승인 후 완료 이동
+target-script	scripts/new-improvement-candidate.sh	개선 후보 기록
+target-script	scripts/decide-improvement.sh	사람의 개선 후보 결정
+target-script	scripts/check-framework.sh	골격 검사
+target-script	scripts/bootstrap-framework.sh	누락 골격 생성
+target-script	scripts/analyze-project.sh	읽기 전용 소스 분석
+target-script	scripts/plan-framework-apply.sh	기존 프로젝트 적용 분류
+target-script	scripts/prepare-project-context.sh	프로젝트 문맥 초안 준비
+target-script	scripts/project-preflight.sh	프로젝트 준비 상태 검사
+target-script	scripts/session-preflight.sh	세션 시작·상태 검사
+target-script	scripts/install-global-session-hooks.sh	선택형 전역 SessionStart 설치
+target-hook	global-hooks/session-start.sh	Shell SessionStart hook
+target-hook	global-hooks/opencode-session-preflight.mjs	OpenCode SessionStart hook
+repository-test	scripts/test-framework.sh	프레임워크 회귀 테스트 묶음
+repository-test	scripts/test-framework-assets.sh	실행 자산 배포·분리 회귀 테스트
+repository-test	scripts/test-review.sh	Review 비교 기준 처리 회귀 테스트
+repository-test	scripts/test-project-preflight.sh	Project Preflight 회귀 테스트
+repository-test	scripts/test-validate-plan.sh	계획 검증 게이트 회귀 테스트
+repository-test	scripts/test-plan-templates.sh	Plan 템플릿 회귀 테스트
