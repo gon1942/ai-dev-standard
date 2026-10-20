@@ -11,6 +11,8 @@
   ],
   "scripts": {
     "build:template": "rm -rf dist/template && bash scripts/build-framework-template.sh --output dist/template",
+    "prepare": "npm run build:template",
+    "prepack": "npm run build:template",
     "prepublishOnly": "npm run build:template"
   },
   "engines": {
