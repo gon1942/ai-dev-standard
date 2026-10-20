@@ -33,3 +33,12 @@ docs/generated/framework-apply-plan.md
 .opencode/package.json
 .opencode/package-lock.json
 .opencode/bun.lock
+
+# 매 요청 작업 기록 — GitHub에 올리지 않고 로컬에만 유지한다.
+# 프레임워크 코드·계약·스크립트·템플릿·사용자 문서만 공개 저장소에 반영한다.
+docs/product-specs/*
+!docs/product-specs/index.md
+docs/exec-plans/active/*
+!docs/exec-plans/active/.gitkeep
+docs/exec-plans/completed/*
+!docs/exec-plans/completed/.gitkeep
