@@ -242,6 +242,10 @@ Codex·OpenCode·Claude Code에서 이 동작을 자동화하려면, 프레임�
 
 ## 주요 명령어
 
+모든 엔진 명령은 Node 런타임으로 동작한다. bash가 없는 환경(Windows 등)에서는
+`node scripts/lib/cli.js <명령>`로 직접 실행한다. `scripts/*.sh`는 유닉스 편의용
+얇은 shim이며 `scripts/reference/`는 동치성 기준선 원본이다.
+
 ```bash
 # 세션 검사
 scripts/session-preflight.sh --start
@@ -257,9 +261,6 @@ scripts/converge-plan.sh docs/exec-plans/active/<plan>.md
 
 # 프레임워크 회귀 검사
 scripts/test-framework.sh
-
-# GitHub Template용 배포물 생성
-scripts/build-framework-template.sh --output /tmp/ai-dev-standard-template
 ```
 
 ## 도구 바인딩
