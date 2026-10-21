@@ -204,6 +204,14 @@ async function main() {
     return;
   }
 
+  // 내부 엔진 명령 — bash 스크립트의 Node 이관 구현.
+  // 동치성은 scripts/test-parity.sh가 증명한다 (활성 전환 전까지 bash가 기준 구현이다).
+  if (command === "new-product-spec" || command === "new-exec-plan") {
+    const commandModule = require(path.join(PKG_ROOT, "lib", "commands", command));
+    commandModule.run(argv.slice(1));
+    return;
+  }
+
   const options = { projectDir: null, yes: false };
 
   for (let i = 1; i < argv.length; i += 1) {
