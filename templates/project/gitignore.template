@@ -1,0 +1,45 @@
+# 의존성/빌드 산출물
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+*.tgz
+
+# 환경/시크릿
+.env
+.env.*
+
+# 편집기/OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# AI 세션 임시 파일 (공식 기록은 docs/product-specs/와 docs/exec-plans/에 둔다)
+.opencode/plan.md
+.opencode/plan.md.*
+.claude/local/
+.ai-dev-standard/session-preflight.json
+
+# Session Preflight·온보딩이 다시 만들 수 있는 로컬 보고서
+docs/generated/project-preflight.md
+docs/generated/project-preflight.json
+docs/generated/project-context-intake.md
+docs/generated/framework-apply-plan.md
+
+# OpenCode 로컬 plugin 의존성. 공통 skill 어댑터만 프로젝트 자산이다.
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock
+
+# 매 요청 작업 기록 — GitHub에 올리지 않고 로컬에만 유지한다.
+# 프레임워크 코드·계약·스크립트·템플릿·사용자 문서만 공개 저장소에 반영한다.
+docs/product-specs/*
+!docs/product-specs/index.md
+docs/exec-plans/active/*
+!docs/exec-plans/active/.gitkeep
+docs/exec-plans/completed/*
+!docs/exec-plans/completed/.gitkeep

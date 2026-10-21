@@ -60,7 +60,12 @@ STAGING="$(mktemp -d "$OUTPUT_PARENT/.ai-dev-standard-template.XXXXXX")"
 
 # 원본 README는 프레임워크 개발 저장소 설명이다. 배포 대상에는 프로젝트 시작용 README를 둔다.
 cp "$ROOT/templates/project/README.md" "$STAGING/README.md"
-cp "$ROOT/.gitignore" "$STAGING/.gitignore"
+# npm 패키지 맥락에서는 .gitignore가 제외되므로 동봉한 템플릿으로 대체한다.
+if [ -f "$ROOT/.gitignore" ]; then
+  cp "$ROOT/.gitignore" "$STAGING/.gitignore"
+else
+  cp "$ROOT/templates/project/gitignore.template" "$STAGING/.gitignore"
+fi
 
 # GitHub Template로 만든 저장소에서도 빈 공식 기록 영역이 유지되도록 한다.
 for directory in \

@@ -39,4 +39,60 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-module.exports = { ROOT, safeName, timestamp, fail, ensureDir };
+// .ai-dev-standard.env 파싱 — bash `source`와 동일하게 KEY=VALUE 단순 형식만 다룬다.
+function parseEnv(text) {
+  const result = {};
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq > 0) result[trimmed.slice(0, eq)] = trimmed.slice(eq + 1);
+  }
+  return result;
+}
+
+// awk '/^## 제목$/{inside=1; next} /^## /{inside=0} inside {print}' 상당 — 경계 제외.
+function sectionInside(content, headingRe) {
+  const lines = content.split("\n");
+  const out = [];
+  let inside = false;
+  for (const line of lines) {
+    if (headingRe.test(line)) {
+      inside = true;
+      continue;
+    }
+    if (/^## /.test(line)) inside = false;
+    if (inside) out.push(line);
+  }
+  return out;
+}
+
+// awk '/시작/,/끝/' 상당 — 시작 라인과 끝 라인을 포함한다.
+function sectionRange(content, startRe, endRe) {
+  const lines = content.split("\n");
+  const out = [];
+  let started = false;
+  for (const line of lines) {
+    if (!started) {
+      if (startRe.test(line)) {
+        started = true;
+        out.push(line);
+      }
+      continue;
+    }
+    out.push(line);
+    if (endRe.test(line)) break;
+  }
+  return out;
+}
+
+module.exports = {
+  ROOT,
+  safeName,
+  timestamp,
+  fail,
+  ensureDir,
+  parseEnv,
+  sectionInside,
+  sectionRange,
+};

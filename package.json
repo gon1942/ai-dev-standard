@@ -7,7 +7,27 @@
   },
   "files": [
     "bin/",
-    "dist/template/"
+    "scripts/",
+    "global-hooks/",
+    "templates/",
+    "docs/",
+    ".opencode/skills/",
+    ".opencode/agents/",
+    ".claude/skills/",
+    ".claude/settings.json",
+    ".claude/commands/",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md",
+    "dist/template/",
+    "!docs/product-specs/*",
+    "!docs/exec-plans/",
+    "!docs/generated/project-preflight.md",
+    "!docs/generated/project-preflight.json",
+    "!docs/generated/project-context-intake.md",
+    "!docs/generated/framework-apply-plan.md",
+    "!scripts/reference/"
   ],
   "scripts": {
     "build:template": "rm -rf dist/template && bash scripts/build-framework-template.sh --output dist/template",

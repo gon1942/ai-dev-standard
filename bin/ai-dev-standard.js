@@ -204,11 +204,30 @@ async function main() {
     return;
   }
 
-  // 내부 엔진 명령 — bash 스크립트의 Node 이관 구현.
-  // 동치성은 scripts/test-parity.sh가 증명한다 (활성 전환 전까지 bash가 기준 구현이다).
-  if (command === "new-product-spec" || command === "new-exec-plan") {
-    const commandModule = require(path.join(PKG_ROOT, "lib", "commands", command));
-    commandModule.run(argv.slice(1));
+  // 내부 엔진 명령 — scripts/lib/cli.js가 디스패치를 담당한다.
+  // bash 활성 구현(shim)과의 동치성은 scripts/test-parity.sh가 증명한다.
+  if (
+    [
+      "new-product-spec",
+      "new-exec-plan",
+      "lint",
+      "test",
+      "validate-plan",
+      "verify",
+      "verify-plan",
+      "converge-plan",
+      "check-framework",
+      "analyze-project",
+      "install-global-session-hooks",
+      "prepare-project-context",
+      "plan-framework-apply",
+      "bootstrap-framework",
+      "project-preflight",
+      "session-preflight",
+    ].includes(command)
+  ) {
+    const { runInternalCommand } = require(path.join(PKG_ROOT, "scripts", "lib", "cli.js"));
+    runInternalCommand(command, argv.slice(1));
     return;
   }
 
