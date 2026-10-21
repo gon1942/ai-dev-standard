@@ -25,6 +25,7 @@ target-script	scripts/lib/commands/review.js	독립 리뷰 체크리스트 (Node
 target-script	scripts/lib/commands/complete-exec-plan.js	완료 보관 이동 (Node 구현)
 target-script	scripts/lib/commands/new-improvement-candidate.js	개선 후보 기록 (Node 구현)
 target-script	scripts/lib/commands/decide-improvement.js	개선 후보 결정 (Node 구현)
+target-script	scripts/lib/commands/work-status.js	세션 작업 기록 복원 요약 (Node 구현)
 target-script	scripts/verify.sh	통합 검증 진입점 (Node 엔진 shim)
 target-script	scripts/validate-plan.sh	Implement 전 계획 검증 (Node 엔진 shim)
 target-script	scripts/verify-plan.sh	계획 기반 검증 진입점 (Node 엔진 shim)

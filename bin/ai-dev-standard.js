@@ -228,6 +228,7 @@ async function main() {
       "complete-exec-plan",
       "new-improvement-candidate",
       "decide-improvement",
+      "work-status",
     ].includes(command)
   ) {
     const { runInternalCommand } = require(path.join(PKG_ROOT, "scripts", "lib", "cli.js"));

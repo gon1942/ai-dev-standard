@@ -26,6 +26,7 @@ const commands = {
   "complete-exec-plan": "./commands/complete-exec-plan",
   "new-improvement-candidate": "./commands/new-improvement-candidate",
   "decide-improvement": "./commands/decide-improvement",
+  "work-status": "./commands/work-status",
 };
 
 function runInternalCommand(name, args) {
