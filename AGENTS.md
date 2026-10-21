@@ -16,7 +16,7 @@
 9. `docs/project-preflight.md` — Plan 전 공통 준비 상태 판정
 10. `docs/session-preflight.md` — 세션 시작 검사·캐시·무효화 규칙
 11. `docs/generated/project-inventory.md` — 있으면 현재 소스 분석 현황 (재생성 가능)
-12. `docs/skill-contracts/` — Plan·Implement·Verify·Review·Improve 공통 실행 계약
+12. `docs/skill-contracts/` — Plan·Implement·Verify·UAT(선택)·Review·Improve 공통 실행 계약
 
 ## 다섯 줄 원칙
 
@@ -40,5 +40,6 @@
 ## 금지
 
 - 승인 없는 commit / push
+- 커밋 승인과 푸시 승인의 구분 없이 진행 — 하나의 승인을 다른 승인으로 재사용하지 않는다
 - 기존 테스트 삭제 (불가피하면 완료 기록에 사유)
 - 민감정보(키·토큰·.env) 출력/커밋
