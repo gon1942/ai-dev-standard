@@ -181,7 +181,7 @@ EOF
     docs/agent-improvements/README.md; do
     copy_document_from_framework_if_missing "$document"
   done
-  for contract in standard-plan.md standard-implement.md standard-verify.md standard-review.md standard-improve.md; do
+  for contract in standard-plan.md standard-implement.md standard-verify.md standard-uat.md standard-review.md standard-improve.md; do
     copy_document_from_framework_if_missing "docs/skill-contracts/$contract"
   done
   copy_runtime_assets
