@@ -1,45 +1,77 @@
-# AGENTS.md — AI 에이전트 공통 지침 (어댑터)
+# AGENTS.md — AI 에이전트 공통 진입점
 
-> 이 파일은 얇은 진입점이다. 규칙의 진실 공급원은 `docs/`에 있다.
-> 규칙을 여기 복제하지 마라 — 어긋난다.
+> 이 파일은 공통 진입점이다.
+> 규칙·절차·실행 인터페이스의 진실 공급원은 `docs/`에 있다.
+> 세부 규칙을 이 파일에 복제하지 않는다.
 
-## 시작 시 반드시 읽을 문서
+## 1. 불변 원칙
 
-1. `docs/development-workflow.md` — 표준 작업 흐름 (필수)
-2. `docs/coding-standards.md` — 코드 규칙 (구현 전)
-3. `docs/definition-of-done.md` — 완료 기준 + 실행 계획 스키마 (완료 전)
-4. `ARCHITECTURE.md` — 저장소 지식 구조와 의존성 지도
-5. `docs/agent-improvements/README.md` — 개선 후보·사람 승인 규칙
-6. `docs/framework-onboarding.md` — 신규·기존 프로젝트 온보딩 절차
-7. `docs/framework-manifest.md` — 기존 프로젝트 적용 시 필수 자산·승인 경계
-8. `docs/project-bootstrap.md` — 최초 적용 시 프로젝트 문맥 설정 절차
-9. `docs/project-preflight.md` — Plan 전 공통 준비 상태 판정
-10. `docs/session-preflight.md` — 세션 시작 검사·캐시·무효화 규칙
-11. `docs/generated/project-inventory.md` — 있으면 현재 소스 분석 현황 (재생성 가능)
-12. `docs/skill-contracts/` — Plan·Implement·Verify·UAT(선택)·Review·Improve 공통 실행 계약
+- 요청 범위 밖 변경을 하지 않는다.
+- 실행하지 않은 검증을 실행했다고 보고하지 않는다.
+- 필수 실행 증거 없이 검증 완료를 선언하지 않는다.
+- 모든 새 작업은 Product Spec과 Exec Plan에 기록한다. 기록 없는 작업은 완료될 수 없다.
+- AI는 `READY_FOR_REVIEW`까지만 선언할 수 있다.
+  `done` 전환은 `docs/definition-of-done.md`의 사람 승인 및 완료 조건을 따른다.
+- 사람 승인 없이 공통 정책·보안·검증 규칙·스킬·실행 게이트를 변경하지 않는다.
+- 승인 없는 commit 또는 push를 하지 않는다. commit 승인과 push 승인은 별도로 취급한다.
+- 민감정보(키·토큰·`.env` 등)를 출력·기록·커밋하지 않는다.
+- 기존 테스트를 임의로 삭제하지 않는다. 불가피한 경우 사유를 공식 완료 기록에 남긴다.
 
-## 다섯 줄 원칙
+## 2. 세션 시작
 
-1. 요청 범위 밖 변경 금지
-2. 구현 후 `scripts/verify-plan.sh <실행계획>` 실행 — 결과를 계획에 남긴다
-3. 모든 새 작업은 제품 명세와 실행 계획으로 기록한다 (기록 없는 완료 없음)
-4. 완료 선언은 `READY_FOR_REVIEW`까지만 — `done`은 사람 승인
-5. 실행하지 않은 테스트를 실행했다고 보고하지 않는다
-6. 개선 후보는 기록만 하고, 사람 승인 전 공통 규칙·스킬·스크립트를 수정하지 않는다
-7. 온보딩은 프레임워크 최초 적용·구조 이상·사용자 재분석 요청에서만 수행한다.
-   일반 기능 요청마다 구조 검사를 반복하지 않는다.
-8. 소스에서 확인한 프로젝트 사실은 `ARCHITECTURE.md`와 설계 문서에 반영할 수 있지만,
-   공통 정책·보안·검증 규칙은 사람 승인 없이 바꾸지 않는다.
-9. 기존 프로젝트 적용은 매니페스트에 따라 생성·보존·병합 제안·제외로 먼저 분류한다.
-   기존 파일 병합은 사용자 승인 전 수행하지 않는다.
-10. `READY_FOR_REVIEW` 선언 전 `scripts/converge-plan.sh <실행계획>`으로 AC·검증·리뷰
-    증거를 수렴 판정한다.
-11. 세션 시작 시 `scripts/session-preflight.sh --start`를 한 번 실행한다. 작업 요청마다 전체
-    검사를 반복하지 말고 `--status`로 캐시 유효성만 확인한다. BLOCK/무효 상태면 Plan/Coding으로 진행하지 않는다.
+- `docs/session-preflight.md`에 따라 세션 준비 상태를 확인한다.
+- `BLOCK` 또는 무효 상태에서는 Plan·Implement 단계로 진행하지 않는다.
+- 같은 세션의 후속 요청에서는 전체 검사를 반복하지 않고 Preflight 캐시 유효성만 확인한다.
+- 캐시 무효화 또는 재검사 조건이 발생하면 해당 계약에 따라 재검사한다.
+- 필수 문서를 읽지 못했거나 준비 조건을 확인할 수 없으면 해당 단계에 진입하지 않는다.
+- 기존 활성 작업이 있으면 그 Product Spec, Exec Plan 및 변경 파일을 확인하여 이전 작업의
+  진행·검증·완료 상태를 파악한다.
+- 이전 에이전트의 완료 기록은 공식 검증 증거와 현재 작업 트리를 기준으로 확인하며,
+  기록만으로 완료를 추정하지 않는다.
+- 동일 작업의 활성 Exec Plan이 존재하면 중복 생성하지 않고 기존 작업을 이어간다.
+- 재개한 이전 작업이 `READY_FOR_REVIEW` 상태이면 검토 대기로 취급하고 `done`으로 간주하지 않는다.
+- 작업 상태는 증분 방식으로 확인하고, 매 세션 전체 프로젝트 분석을 반복하지 않는다.
 
-## 금지
+## 3. 단계별 필수 문서
 
-- 승인 없는 commit / push
-- 커밋 승인과 푸시 승인의 구분 없이 진행 — 하나의 승인을 다른 승인으로 재사용하지 않는다
-- 기존 테스트 삭제 (불가피하면 완료 기록에 사유)
-- 민감정보(키·토큰·.env) 출력/커밋
+각 단계에 진입하기 전에 해당 문서를 읽는다.
+같은 세션에서 이미 읽었고 내용이 바뀌지 않은 문서는 다시 읽지 않아도 된다.
+
+| 진입 시점 | 필수 문서 |
+|---|---|
+| 세션 시작 | `docs/development-workflow.md`, `ARCHITECTURE.md`, `docs/session-preflight.md` |
+| Plan | `docs/skill-contracts/standard-plan.md`, `docs/coding-standards.md`, `docs/definition-of-done.md` |
+| Implement | `docs/skill-contracts/standard-implement.md`, `docs/coding-standards.md`, `docs/testing-policy.md` |
+| Verify | `docs/skill-contracts/standard-verify.md`, `docs/testing-policy.md`, 필요 시 `docs/skill-contracts/standard-uat.md` |
+| Review | `docs/skill-contracts/standard-review.md`, `docs/definition-of-done.md` |
+| Improve | `docs/skill-contracts/standard-improve.md`, `docs/agent-improvements/README.md` |
+
+## 4. 조건부 문서
+
+다음 상황에서만 관련 문서를 읽는다.
+
+- 프레임워크 최초 적용, 구조 이상, 사용자 재분석 요청:
+  `docs/framework-onboarding.md`, `docs/framework-manifest.md`,
+  `docs/project-bootstrap.md`
+- Preflight가 `BLOCK`·무효이거나 재검사 원인 분석이 필요:
+  `docs/project-preflight.md`
+- 개선 후보 등록·승인·구현:
+  `docs/agent-improvements/README.md` 및 Improve 계약
+- 프로젝트의 소스 분석 현황이 필요한 경우:
+  `docs/generated/project-inventory.md` (존재하는 경우)
+
+일반 기능 요청마다 온보딩이나 전체 구조 분석을 반복하지 않는다.
+
+## 5. 실행·검증·완료 경계
+
+- 구체적 실행 명령과 플랫폼별 진입점은
+  `docs/development-workflow.md` 및 해당 스킬 계약에 정의된 현재 실행 인터페이스를 따른다.
+- Implement 진입 전에는 승인된 Product Spec·Exec Plan과 계획 게이트 통과가 필요하다.
+- 스킬은 검증 전략 선정, AC 해석, 오류 분석, 의미적 충족 여부 판단을 담당한다.
+- Node 런타임은 필수 명령을 직접 실행하고, Node 게이트는 증거 형식·승인 상태·상태 전이를 검사한다.
+- `READY_FOR_REVIEW` 선언 전 Node 게이트는 필수 자동 검증을 현재 작업 트리에서 다시 실행한다.
+- 수동 확인·UAT 증거의 최신성은 Verify 계약과 공식 Exec Plan 기록을 따른다.
+- `READY_FOR_REVIEW` 선언 전에는 필수 검증, 독립 리뷰, 수렴 게이트를 통과해야 한다.
+- 공식 검증 증거와 AC별 판정은 Exec Plan에 기록한다.
+- 작업 재개를 위한 보조 상태 정보가 존재하더라도 공식 검증 증거 및 완료 판정은 Exec Plan을 기준으로 한다.
+- UAT의 최종 판정과 증거도 Exec Plan에 기록한다.
