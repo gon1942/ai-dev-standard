@@ -21,6 +21,10 @@ target-script	scripts/lib/commands/plan-framework-apply.js	기존 프로젝트 �
 target-script	scripts/lib/commands/bootstrap-framework.js	누락 골격 생성 (Node 구현)
 target-script	scripts/lib/commands/project-preflight.js	프로젝트 준비 상태 검사 (Node 구현)
 target-script	scripts/lib/commands/session-preflight.js	세션 시작·상태 검사 (Node 구현)
+target-script	scripts/lib/commands/review.js	독립 리뷰 체크리스트 (Node 구현)
+target-script	scripts/lib/commands/complete-exec-plan.js	완료 보관 이동 (Node 구현)
+target-script	scripts/lib/commands/new-improvement-candidate.js	개선 후보 기록 (Node 구현)
+target-script	scripts/lib/commands/decide-improvement.js	개선 후보 결정 (Node 구현)
 target-script	scripts/verify.sh	통합 검증 진입점 (Node 엔진 shim)
 target-script	scripts/validate-plan.sh	Implement 전 계획 검증 (Node 엔진 shim)
 target-script	scripts/verify-plan.sh	계획 기반 검증 진입점 (Node 엔진 shim)
@@ -29,11 +33,11 @@ target-script	scripts/new-product-spec.sh	제품 명세 생성
 target-script	scripts/new-exec-plan.sh	실행 계획 생성
 target-script	scripts/validate-plan.sh	Implement 전 계획 검증
 target-script	scripts/verify-plan.sh	계획 기반 검증 진입점
-target-script	scripts/review.sh	독립 리뷰 체크리스트
+target-script	scripts/review.sh	독립 리뷰 체크리스트 (Node 엔진 shim)
 target-script	scripts/converge-plan.sh	최종 증거 수렴 판정
-target-script	scripts/complete-exec-plan.sh	사람 승인 후 완료 이동
-target-script	scripts/new-improvement-candidate.sh	개선 후보 기록
-target-script	scripts/decide-improvement.sh	사람의 개선 후보 결정
+target-script	scripts/complete-exec-plan.sh	사람 승인 후 완료 이동 (Node 엔진 shim)
+target-script	scripts/new-improvement-candidate.sh	개선 후보 기록 (Node 엔진 shim)
+target-script	scripts/decide-improvement.sh	사람의 개선 후보 결정 (Node 엔진 shim)
 target-script	scripts/check-framework.sh	골격 검사 (Node 엔진 shim)
 target-script	scripts/bootstrap-framework.sh	누락 골격 생성 (Node 엔진 shim)
 target-script	scripts/analyze-project.sh	읽기 전용 소스 분석 (Node 엔진 shim)

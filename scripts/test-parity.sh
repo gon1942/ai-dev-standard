@@ -626,6 +626,118 @@ cp "$FW/scripts/reference/"*.sh "$FW/scripts/"
   fi
 }
 
+# ── 케이스 30~36: 잔여 4종 (review·complete-exec-plan·개선루프 2종) ──
+
+# v1: review — git 아닌 환경 → 비교 기준 없음 폴백
+{
+  BD="$TMP/v1-bash"; ND="$TMP/v1-node"
+  setup_case "$BD" review.sh; mkdir -p "$ND"
+  set +e
+  (cd "$BD" && bash scripts/review.sh) > "$TMP/v1-bash.out" 2>&1; BC=$?
+  node_cli "$ND" review > "$TMP/v1-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "리뷰-기준없음" "$BC" "$TMP/v1-bash.out" "$NC" "$TMP/v1-node.out"
+}
+
+# v2: complete-exec-plan 사용법 오류 → exit 2
+{
+  BD="$TMP/v2-bash"; ND="$TMP/v2-node"
+  setup_case "$BD" complete-exec-plan.sh; mkdir -p "$ND"
+  set +e
+  (cd "$BD" && bash scripts/complete-exec-plan.sh one) > "$TMP/v2-bash.out" 2>&1; BC=$?
+  node_cli "$ND" complete-exec-plan one > "$TMP/v2-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "완료-사용법오류" "$BC" "$TMP/v2-bash.out" "$NC" "$TMP/v2-node.out"
+}
+
+# v3: complete-exec-plan 상태 오류(active) → exit 2
+{
+  BD="$TMP/v3-bash"; ND="$TMP/v3-node"
+  setup_case "$BD" complete-exec-plan.sh
+  mkdir -p "$BD/docs/exec-plans/active" "$ND/docs/exec-plans/active"
+  printf -- '# Exec Plan: x\n\n- 상태: active\n' > "$BD/docs/exec-plans/active/plan.md"
+  printf -- '# Exec Plan: x\n\n- 상태: active\n' > "$ND/docs/exec-plans/active/plan.md"
+  set +e
+  (cd "$BD" && bash scripts/complete-exec-plan.sh docs/exec-plans/active/plan.md 승인자) > "$TMP/v3-bash.out" 2>&1; BC=$?
+  node_cli "$ND" complete-exec-plan docs/exec-plans/active/plan.md 승인자 > "$TMP/v3-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "완료-상태오류" "$BC" "$TMP/v3-bash.out" "$NC" "$TMP/v3-node.out"
+}
+
+# v4: complete-exec-plan 성공 → done 이동·승인 라인·트리 비교
+{
+  BD="$TMP/v4-bash"; ND="$TMP/v4-node"
+  setup_case "$BD" complete-exec-plan.sh
+  for D in "$BD" "$ND"; do
+    mkdir -p "$D/docs/exec-plans/active"
+    printf -- '# Exec Plan: x\n\n- 상태: READY_FOR_REVIEW\n\n## 완료 기록\n- 리뷰: PASS\n' > "$D/docs/exec-plans/active/plan.md"
+  done
+  set +e
+  (cd "$BD" && bash scripts/complete-exec-plan.sh docs/exec-plans/active/plan.md gon) > "$TMP/v4-bash.out" 2>&1; BC=$?
+  node_cli "$ND" complete-exec-plan docs/exec-plans/active/plan.md gon > "$TMP/v4-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "완료-성공" "$BC" "$TMP/v4-bash.out" "$NC" "$TMP/v4-node.out"
+  compare_trees "완료-파일" "$BD" "$ND"
+}
+
+# v5: 개선 후보 사용법 오류 (3인자) → exit 2
+{
+  BD="$TMP/v5-bash"; ND="$TMP/v5-node"
+  setup_case "$BD" new-improvement-candidate.sh; mkdir -p "$ND"
+  set +e
+  (cd "$BD" && bash scripts/new-improvement-candidate.sh a b c) > "$TMP/v5-bash.out" 2>&1; BC=$?
+  node_cli "$ND" new-improvement-candidate a b c > "$TMP/v5-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "후보-사용법오류" "$BC" "$TMP/v5-bash.out" "$NC" "$TMP/v5-node.out"
+}
+
+# v6: 후보 생성(한글 제목) → decide approve → approved 이동·내용 비교
+{
+  BD="$TMP/v6-bash"; ND="$TMP/v6-node"
+  setup_case "$BD" new-improvement-candidate.sh decide-improvement.sh
+  for D in "$BD" "$ND"; do mkdir -p "$D/docs/exec-plans/completed"; printf 'plan\n' > "$D/docs/exec-plans/completed/src.md"; done
+  set +e
+  (cd "$BD" && bash scripts/new-improvement-candidate.sh "개선 제목" "문제 설명" "근거 설명" docs/exec-plans/completed/src.md) > "$TMP/v6-bash.out" 2>&1; BC=$?
+  node_cli "$ND" new-improvement-candidate "개선 제목" "문제 설명" "근거 설명" docs/exec-plans/completed/src.md > "$TMP/v6-node.out" 2>&1; NC=$?
+  set -e
+  sed -i "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{6\}/TIMESTAMP/g" "$TMP/v6-bash.out" "$TMP/v6-node.out"
+  compare_outputs "후보-생성" "$BC" "$TMP/v6-bash.out" "$NC" "$TMP/v6-node.out"
+  BCAND="$(ls "$BD/docs/agent-improvements/candidates/")"
+  NCAND="$(ls "$ND/docs/agent-improvements/candidates/")"
+  if [ "$BCAND" != "$NCAND" ]; then
+    echo "FAIL [후보-파일명] 불일치: $BCAND vs $NCAND" >&2
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  else
+    PASS_COUNT=$((PASS_COUNT + 1))
+  fi
+  set +e
+  (cd "$BD" && bash scripts/decide-improvement.sh approve "docs/agent-improvements/candidates/$BCAND" 결정자 "승인 사유") > "$TMP/v6d-bash.out" 2>&1; BCD=$?
+  node_cli "$ND" decide-improvement approve "docs/agent-improvements/candidates/$NCAND" 결정자 "승인 사유" > "$TMP/v6d-node.out" 2>&1; NCD=$?
+  set -e
+  compare_outputs "후보-승인" "$BCD" "$TMP/v6d-bash.out" "$NCD" "$TMP/v6d-node.out"
+  if diff -q <(normalize < "$BD/docs/agent-improvements/approved/$BCAND") <(normalize < "$ND/docs/agent-improvements/approved/$NCAND") >/dev/null; then
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "FAIL [후보-승인내용] 불일치" >&2
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+}
+
+# v7: decide 잘못된 결정 → exit 2
+{
+  BD="$TMP/v7-bash"; ND="$TMP/v7-node"
+  setup_case "$BD" decide-improvement.sh
+  for D in "$BD" "$ND"; do
+    mkdir -p "$D/docs/agent-improvements/candidates"
+    printf -- '# IC\n\n- 상태: candidate\n' > "$D/docs/agent-improvements/candidates/c.md"
+  done
+  set +e
+  (cd "$BD" && bash scripts/decide-improvement.sh maybe docs/agent-improvements/candidates/c.md x y) > "$TMP/v7-bash.out" 2>&1; BC=$?
+  node_cli "$ND" decide-improvement maybe docs/agent-improvements/candidates/c.md x y > "$TMP/v7-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "후보-잘못된결정" "$BC" "$TMP/v7-bash.out" "$NC" "$TMP/v7-node.out"
+}
+
 echo "동치성: $PASS_COUNT PASS, $FAIL_COUNT FAIL"
 if [ "$FAIL_COUNT" -gt 0 ]; then
   echo "PARITY: FAIL" >&2

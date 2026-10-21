@@ -224,6 +224,10 @@ async function main() {
       "bootstrap-framework",
       "project-preflight",
       "session-preflight",
+      "review",
+      "complete-exec-plan",
+      "new-improvement-candidate",
+      "decide-improvement",
     ].includes(command)
   ) {
     const { runInternalCommand } = require(path.join(PKG_ROOT, "scripts", "lib", "cli.js"));

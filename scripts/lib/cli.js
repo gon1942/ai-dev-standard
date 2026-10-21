@@ -22,6 +22,10 @@ const commands = {
   "bootstrap-framework": "./commands/bootstrap-framework",
   "project-preflight": "./commands/project-preflight",
   "session-preflight": "./commands/session-preflight",
+  review: "./commands/review",
+  "complete-exec-plan": "./commands/complete-exec-plan",
+  "new-improvement-candidate": "./commands/new-improvement-candidate",
+  "decide-improvement": "./commands/decide-improvement",
 };
 
 function runInternalCommand(name, args) {
