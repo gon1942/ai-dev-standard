@@ -6,7 +6,14 @@
 const fs = require("fs");
 const path = require("path");
 const { ROOT, fail, sectionRange, sectionInside } = require("../util");
-const { parseDecision, decisionProblems } = require("../e2e");
+const {
+  parseDecision,
+  decisionProblems,
+  needsAutomaticConfiguration,
+  parseProfileProposal,
+  profileProposalProblems,
+  loadE2EConfig,
+} = require("../e2e");
 
 function run(args) {
   // bash: 인자 1개 + 파일 존재 + docs/exec-plans/active/ 경로 검사
@@ -97,6 +104,10 @@ function run(args) {
           fail(`E2E 판정의 대상 AC가 검증 계획에 없습니다: ${ac}`, 2);
         }
       }
+    }
+    if (needsAutomaticConfiguration(decision) && loadE2EConfig().status === "missing") {
+      const proposalProblems = profileProposalProblems(parseProfileProposal(plan), decision, specAcs);
+      if (proposalProblems.length > 0) fail(proposalProblems[0], 2);
     }
   }
 

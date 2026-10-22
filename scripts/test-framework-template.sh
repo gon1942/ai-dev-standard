@@ -46,8 +46,11 @@ for path in \
   scripts/record-verification-evidence.sh \
   scripts/lib/evidence.js \
   scripts/lib/e2e.js \
+  scripts/lib/e2e-profile.js \
   scripts/lib/commands/record-e2e-evidence.js \
   scripts/record-e2e-evidence.sh \
+  scripts/lib/commands/configure-e2e-profile.js \
+  scripts/configure-e2e-profile.sh \
   docs/exec-plans/active/.gitkeep \
   docs/exec-plans/completed/.gitkeep \
   docs/agent-improvements/candidates/.gitkeep; do

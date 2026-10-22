@@ -13,6 +13,7 @@ for suite in \
   scripts/test-validate-plan.sh \
   scripts/test-plan-templates.sh \
   scripts/test-e2e-gate.sh \
+  scripts/test-e2e-profile.sh \
   scripts/test-verification-evidence.sh; do
   echo "=== FRAMEWORK TEST: $suite ==="
   bash "$suite"

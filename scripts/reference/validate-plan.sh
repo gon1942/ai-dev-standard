@@ -101,6 +101,33 @@ if [ "$CONTRACT_VERSION" = "2" ]; then
       printf '%s\n' "$spec_acs" | grep -Fxq "$e2e_ac" || { echo "E2E 판정의 대상 AC가 제품 명세에 없습니다." >&2; exit 2; }
       awk '/^## 검증 계획$/{inside=1; next} /^## /{inside=0} inside {print}' "$PLAN_FILE" | grep -Fq "$e2e_ac" || { echo "E2E 판정의 대상 AC가 검증 계획에 없습니다: $e2e_ac" >&2; exit 2; }
     done
+
+    if { [ "$E2E_METHOD" = "자동 Browser E2E" ] || [ "$E2E_METHOD" = "API/System E2E" ]; } && [ ! -f .ai-dev-standard/e2e.json ]; then
+      PROFILE_SECTION="$(awk '/^## E2E 프로필 제안$/{inside=1; next} /^## /{inside=0} inside {print}' "$PLAN_FILE")"
+      profile_value() { printf '%s\n' "$PROFILE_SECTION" | sed -n "s/^- $1: //p" | head -n 1; }
+      PROFILE_READINESS="$(profile_value '준비 상태')"
+      PROFILE_NAME="$(profile_value '선택 프로필')"
+      PROFILE_ACS="$(profile_value '대상 AC')"
+      PROFILE_IMPACT="$(profile_value '설치 영향')"
+      PROFILE_COMMAND="$(profile_value '구성 명령')"
+      PROFILE_ALTERNATIVE="$(profile_value '거부/실패 대안')"
+      [ -n "$PROFILE_SECTION" ] || { echo "자동 E2E 설정이 없으면 '## E2E 프로필 제안' 섹션이 필요합니다." >&2; exit 2; }
+      [ "$PROFILE_READINESS" = "구성 필요" ] || { echo "E2E 프로필 제안의 '준비 상태'는 구성 필요여야 합니다." >&2; exit 2; }
+      case "$PROFILE_NAME" in node-api|playwright|cypress) ;; *) echo "E2E 프로필 제안의 '선택 프로필'은 node-api, playwright, cypress 중 하나여야 합니다." >&2; exit 2;; esac
+      if { [ "$PROFILE_NAME" = node-api ] && [ "$E2E_METHOD" != "API/System E2E" ]; } || { [ "$PROFILE_NAME" != node-api ] && [ "$E2E_METHOD" != "자동 Browser E2E" ]; }; then
+        echo "E2E 프로필 제안의 선택 프로필과 E2E 방식이 일치하지 않습니다." >&2
+        exit 2
+      fi
+      for profile_field in "$PROFILE_IMPACT" "$PROFILE_COMMAND" "$PROFILE_ALTERNATIVE"; do
+        [ -n "$profile_field" ] && [ "$profile_field" != "해당 없음" ] || { echo "E2E 프로필 제안의 필수 항목이 필요합니다." >&2; exit 2; }
+      done
+      PROFILE_AC_LIST="$(printf '%s\n' "$PROFILE_ACS" | grep -oE 'AC-[0-9]+' | sort -u || true)"
+      [ -n "$PROFILE_AC_LIST" ] || { echo "E2E 프로필 제안의 대상 AC가 제품 명세에 없습니다." >&2; exit 2; }
+      [ "$PROFILE_AC_LIST" = "$E2E_AC_LIST" ] || { echo "E2E 프로필 제안의 대상 AC는 E2E 판정의 대상 AC와 일치해야 합니다." >&2; exit 2; }
+      for profile_ac in $PROFILE_AC_LIST; do
+        printf '%s\n' "$spec_acs" | grep -Fxq "$profile_ac" || { echo "E2E 프로필 제안의 대상 AC가 제품 명세에 없습니다." >&2; exit 2; }
+      done
+    fi
   fi
 fi
 

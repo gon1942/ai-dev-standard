@@ -138,6 +138,15 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
 - 자동 실행 명령 또는 수동 UAT 시나리오: <프로젝트 E2E 설정을 쓸 명령 또는 실제 사용자 절차>
 - 사전 조건: <서버·테스트 데이터·권한> | 해당 없음
 
+## E2E 프로필 제안 (자동 E2E 설정이 없을 때만 작성)
+
+- 준비 상태: 구성 필요
+- 선택 프로필: node-api | playwright | cypress
+- 대상 AC: AC-01, AC-02
+- 설치 영향: 개발 의존성·브라우저 다운로드·CI 영향
+- 구성 명령: node scripts/lib/cli.js configure-e2e-profile <실행계획> <프로필>
+- 거부/실패 대안: 수동 UAT | AC 범위 조정 | 미검증 보류
+
 ## 완료 기록 (완료 시 작성)
 
 - 완료일시: YYYY-MM-DD HH:MM
@@ -145,6 +154,7 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
   - path/to/file.ext (+N/−M) — 변경 이유 한 줄
 - 검증 증거:
   - verify-plan.sh 결과: PASS (verify.sh: lint 0 errors, tests 35/35)
+  - 소스 지문: record-verification-evidence 실행 시 자동 기록 (내용 기반 sha256)
   - 수동 확인: <브라우저 실측 등, 없으면 "없음">
 - 리뷰: PASS | WARN(사유) | FAIL
 - 커밋: <hash> | 미커밋(사유)
@@ -182,6 +192,9 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
   관찰 결과, `- 판정: PASS`를 기록한다.
 - 설정 없음, 실행 실패, 브라우저·외부 환경 부재는 `미검증`이며 E2E 대상 AC를 PASS로 바꾸지
   않는다. `converge-plan`도 통과하지 않는다.
+- 자동 Browser/API E2E에 설정이 없으면 승인된 Plan의 프로필 제안으로만 구성한다. 구성 명령은
+  승인·프로필 일치를 확인하고 기존 유효 설정을 재사용한다. 설치 거부·실패는 수동 UAT, 범위 조정,
+  미검증 보류 중 Plan에 적힌 대안을 따르며 PASS 증거가 아니다.
 - E2E가 `불필요`이거나 버전 표기가 없는 레거시 Plan에는 E2E 실행을 추가로 강제하지 않는다.
 
 ### 5.1 자동 검증 증거

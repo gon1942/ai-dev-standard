@@ -17,7 +17,7 @@
 | Unit Test | 개별 함수/모듈 동작 | 구현 완료 후 | Jest, pytest |
 | Integration Test | 모듈 간 연동 | 필요 시 | Jest, pytest |
 | Regression Test | 기존 기능 보호 | 구현 완료 후 전체 슈이트 | 전체 슈이트 |
-| E2E | 사용자 시나리오 | 릴리스 전/필요시 | Playwright |
+| E2E | 사용자 시나리오 | 릴리스 전/필요시 | Playwright, Cypress |
 
 ### 1.1 E2E 판정과 실행
 
@@ -26,6 +26,14 @@
 - Plan의 E2E 판정은 에이전트가 제안하고 사람이 Exec Plan 승인으로 확정한다.
 - 자동 E2E는 `.ai-dev-standard/e2e.json`의 `command`와 `args` 문자열 배열만 사용하며,
   `node scripts/lib/cli.js test e2e`가 셸 없이 실행한다. Playwright는 선택 사항이다.
+- 자동 Browser E2E 또는 API/System E2E가 필요하지만 해당 설정이 없으면, Plan에 `## E2E 프로필 제안`을
+  작성한다. 제안은 선택 프로필(`node-api`·`playwright`·`cypress`), 대상 AC, 의존성·브라우저·CI 영향,
+  구성 명령, 설치 거부·실패 대안을 모두 포함한다.
+- 에이전트는 Plan 승인 전 도구·브라우저를 설치하거나 E2E 설정을 만들지 않는다. 승인된 Plan의 선택
+  프로필과 일치할 때만 `node scripts/lib/cli.js configure-e2e-profile <계획> <프로필>`로 구성한다.
+  기존 유효 설정은 재사용하며 덮어쓰지 않는다. Playwright는 Chromium만 설치하며 OS 의존성 설치는 하지 않는다.
+- 설치 제안이 거부되면 수동 Browser UAT, AC 범위 조정, 미검증 보류 중 하나를 Plan에 확정한다. 필요한
+  E2E 증거 없이 `READY_FOR_REVIEW`을 선언할 수 없다는 기존 경계는 변하지 않는다.
 - E2E가 필요하면 `record-e2e-evidence`로 자동 실행 증거를 기록하거나 `standard-uat`의 수동
   UAT 증거를 남긴다. 설정 없음·실패·미실행은 PASS가 아니다.
 

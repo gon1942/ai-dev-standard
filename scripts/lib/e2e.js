@@ -14,6 +14,7 @@ const E2E_METHODS = new Set([
   "CLI E2E",
   "해당 없음",
 ]);
+const E2E_PROFILES = new Set(["node-api", "playwright", "cypress"]);
 
 function value(lines, label) {
   const match = lines.join("\n").match(new RegExp(`^- ${label}: (.+)$`, "m"));
@@ -84,6 +85,52 @@ function isManualUat(decision) {
   return decision.needed === "필요" && decision.method === "수동 Browser UAT";
 }
 
+function needsAutomaticConfiguration(decision) {
+  return decision.needed === "필요" && ["자동 Browser E2E", "API/System E2E"].includes(decision.method);
+}
+
+function parseProfileProposal(plan) {
+  const lines = sectionInside(plan, /^## E2E 프로필 제안$/);
+  return {
+    exists: lines.length > 0,
+    readiness: value(lines, "준비 상태"),
+    profile: value(lines, "선택 프로필"),
+    acs: value(lines, "대상 AC"),
+    impact: value(lines, "설치 영향"),
+    command: value(lines, "구성 명령"),
+    alternative: value(lines, "거부/실패 대안"),
+  };
+}
+
+function profileProposalProblems(proposal, decision, specAcs) {
+  if (!proposal.exists) return ["자동 E2E 설정이 없으면 '## E2E 프로필 제안' 섹션이 필요합니다."];
+  if (proposal.readiness !== "구성 필요") {
+    return ["E2E 프로필 제안의 '준비 상태'는 구성 필요여야 합니다."];
+  }
+  if (!E2E_PROFILES.has(proposal.profile)) {
+    return ["E2E 프로필 제안의 '선택 프로필'은 node-api, playwright, cypress 중 하나여야 합니다."];
+  }
+  if (
+    (proposal.profile === "node-api" && decision.method !== "API/System E2E") ||
+    (proposal.profile !== "node-api" && decision.method !== "자동 Browser E2E")
+  ) {
+    return ["E2E 프로필 제안의 선택 프로필과 E2E 방식이 일치하지 않습니다."];
+  }
+  for (const label of ["설치 영향", "구성 명령", "거부/실패 대안"]) {
+    const field = label === "설치 영향" ? proposal.impact : label === "구성 명령" ? proposal.command : proposal.alternative;
+    if (!field || field === "해당 없음") return [`E2E 프로필 제안의 '${label}'이 필요합니다.`];
+  }
+  const proposalAcs = Array.from(new Set(proposal.acs.match(/AC-[0-9]+/g) || [])).sort();
+  const decisionAcs = Array.from(new Set(decision.acs.match(/AC-[0-9]+/g) || [])).sort();
+  if (proposalAcs.length === 0 || proposalAcs.some((ac) => !specAcs.includes(ac))) {
+    return ["E2E 프로필 제안의 대상 AC가 제품 명세에 없습니다."];
+  }
+  if (proposalAcs.join(",") !== decisionAcs.join(",")) {
+    return ["E2E 프로필 제안의 대상 AC는 E2E 판정의 대상 AC와 일치해야 합니다."];
+  }
+  return [];
+}
+
 function manualUatEvidenceIsPass(plan) {
   const evidence = sectionInside(plan, /^## E2E 검증 증거$/).join("\n");
   return /^### 수동 UAT /m.test(evidence) &&
@@ -134,6 +181,10 @@ module.exports = {
   parseDecision,
   decisionProblems,
   isManualUat,
+  needsAutomaticConfiguration,
+  parseProfileProposal,
+  profileProposalProblems,
+  E2E_PROFILES,
   manualUatEvidenceIsPass,
   automaticE2eEvidenceIsPass,
   loadE2EConfig,
