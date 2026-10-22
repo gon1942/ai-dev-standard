@@ -82,8 +82,7 @@ done
 mkdir -p "$STAGING/docs/references/ponytail"
 cp "$ROOT/vendor/ponytail/LICENSE" "$STAGING/docs/references/ponytail/LICENSE"
 cp "$ROOT/vendor/ponytail/UPSTREAM.md" "$STAGING/docs/references/ponytail/UPSTREAM.md"
-# OpenCode 프로젝트 설정 (Ponytail 플러그인)
-cp "$ROOT/templates/project/opencode.json" "$STAGING/opencode.json" 2>/dev/null || true
+
 
 # GitHub Template로 만든 저장소에서도 빈 공식 기록 영역이 유지되도록 한다.
 for directory in \

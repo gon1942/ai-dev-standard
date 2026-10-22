@@ -1,11 +1,13 @@
 "use strict";
 
-// suggest-tools — 세션 시작 시 보조 도구 설치 상태 확인·설치 안내.
-// 설치는 강제하지 않는다. 사용자가 확인하면 에이전트가 적절한 명령을 안내한다.
+// suggest-tools — 세션 시작 시 보조 도구 설치 상태 확인·설치 안내·설치 실행.
+// 대화형(y/N)으로 사용자 확인 후 실제 설치를 진행한다.
+// --check 플래그 또는 비TTY 환경에서는 상태 출력만 한다.
 
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const readline = require("readline");
 const { ROOT } = require("../util");
 
 function readJsonSafe(filePath) {
@@ -16,73 +18,150 @@ function readJsonSafe(filePath) {
   }
 }
 
-function ponytailPluginInstalled() {
-  const configPath = path.join(os.homedir(), ".config", "opencode", "opencode.json");
-  const localConfig = path.join(ROOT, "opencode.json");
-  for (const p of [localConfig, configPath]) {
+function ask(question) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(`${question} [y/N] `, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === "y");
+    });
+  });
+}
+
+// ── OpenCode 플러그인 ──
+function opencodePluginStatus() {
+  const local = path.join(ROOT, "opencode.json");
+  const global = path.join(os.homedir(), ".config", "opencode", "opencode.json");
+  for (const p of [local, global]) {
     const config = readJsonSafe(p);
     if (config && Array.isArray(config.plugin) && config.plugin.includes("@dietrichgebert/ponytail")) {
-      return true;
+      return { installed: true, path: p };
     }
   }
-  return false;
+  return { installed: false, path: null };
 }
 
-function ponytailSkillIncluded() {
-  return (
-    fs.existsSync(path.join(ROOT, ".opencode", "skills", "ponytail", "SKILL.md")) ||
-    fs.existsSync(path.join(ROOT, ".claude", "skills", "ponytail", "SKILL.md")) ||
-    fs.existsSync(path.join(ROOT, ".agents", "skills", "ponytail", "SKILL.md"))
-  );
+function installOpencodePlugin() {
+  const target = path.join(ROOT, "opencode.json");
+  let config = readJsonSafe(target) || {};
+  if (!Array.isArray(config.plugin)) config.plugin = [];
+  if (!config.plugin.includes("@dietrichgebert/ponytail")) {
+    config.plugin.push("@dietrichgebert/ponytail");
+    fs.writeFileSync(target, JSON.stringify(config, null, 2) + "\n", "utf8");
+  }
+  return `opencode.json에 플러그인 등록 완료 (${path.relative(ROOT, target)})`;
 }
 
-function jscpdAvailable() {
-  // duplicate-check가 이미 verify 체인에 포함돼 있으므로 항상 사용 가능
-  return true;
+// ── 스킬 파일 (Claude Code / Codex / OpenCode) ──
+function skillStatus(toolDir) {
+  const skillPath = path.join(ROOT, toolDir, "skills", "ponytail", "SKILL.md");
+  return { installed: fs.existsSync(skillPath), path: skillPath };
 }
 
-function run(args) {
-  void args;
+function installSkill(toolDir) {
+  const source = path.join(ROOT, "vendor", "ponytail", "SKILL.md");
+  const target = path.join(ROOT, toolDir, "skills", "ponytail", "SKILL.md");
+  if (!fs.existsSync(source)) {
+    return `원본 스킬 없음: ${source}`;
+  }
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(source, target);
+  return `스킬 복사 완료: ${path.relative(ROOT, target)}`;
+}
+
+async function run(args) {
+  const checkOnly = args.includes("--check") || !process.stdin.isTTY;
   const out = [];
-  const write = (line) => out.push(line);
+  const write = (line) => { out.push(line); process.stdout.write(line + "\n"); };
 
   write("=== 보조 도구 확인 ===");
   write("");
 
-  // 이미 프로젝트에 포함된 것
-  write("프로젝트에 포함된 것:");
-  if (ponytailSkillIncluded()) {
-    write("  ✓ Ponytail 스킬 (구현 계약 의무 — 세 도구 공통)");
-  }
-  if (jscpdAvailable()) {
-    write("  ✓ 중복 검사 jscpd (verify 체인 자동 포함)");
-  }
-  write("");
+  const actions = [];
 
-  // 추가 설치 권장
-  write("추가 설치 권장:");
-  if (!ponytailPluginInstalled()) {
-    write("  □ Ponytail 플러그인 (OpenCode 전용 — 지속적 프롬프팅)");
-    write("    효과: 구현 중 매 턴 '이 코드 필요한가?' 자동 주입");
-    write("    설치 방법:");
-    write("      1. 프로젝트 opencode.json의 plugin 배열에 추가:");
-    write('         "@dietrichgebert/ponytail"');
-    write("      2. 또는 전역 설정(~/.config/opencode/opencode.json)에 추가");
-    write("      3. OpenCode 재시작");
-    write("");
-    write("    에이전트가 설치를 진행할 수 있습니다.");
-    write("    설치하시겠습니까? (y/N)");
+  // ── OpenCode 플러그인 ──
+  const oc = opencodePluginStatus();
+  write("OpenCode:");
+  if (oc.installed) {
+    write("  ✓ Ponytail 플러그인 (자동 활성화)");
   } else {
-    write("  ✓ Ponytail 플러그인 (이미 설치됨)");
+    write("  □ Ponytail 플러그인 (미설치)");
+    write("    효과: 구현 중 매 턴 '이 코드 필요한가?' 자동 주입");
+    actions.push({ label: "OpenCode 플러그인", install: installOpencodePlugin });
+  }
+  write("");
+
+  // ── 스킬 파일 (3도구) ──
+  const tools = [
+    { name: "OpenCode", dir: ".opencode" },
+    { name: "Claude Code", dir: ".claude" },
+    { name: "Codex", dir: ".agents" },
+  ];
+
+  let allSkillsInstalled = true;
+  for (const tool of tools) {
+    const status = skillStatus(tool.dir);
+    write(`${tool.name}:`);
+    if (status.installed) {
+      write(`  ✓ Ponytail 스킬 (구현 계약 의무)`);
+    } else {
+      write(`  □ Ponytail 스킬 (미설치)`);
+      allSkillsInstalled = false;
+      actions.push({
+        label: `${tool.name} 스킬`,
+        install: () => installSkill(tool.dir),
+      });
+    }
+  }
+  write("");
+
+  // ── jscpd ──
+  write("공통:");
+  write("  ✓ 중복 검사 jscpd (verify 체인 자동 포함)");
+  write("");
+
+  // ── 설치 진행 ──
+  if (actions.length === 0) {
+    write("모든 보조 도구가 준비돼 있습니다.");
+    write("");
+    write("참고: Ponytail 스킬은 구현 계약이 의무로 적용하며, 플러그인은 추가 향상(지속 프롬프팅)입니다.");
+    return;
+  }
+
+  if (checkOnly) {
+    write(`미설치 항목 ${actions.length}건이 있습니다:`);
+    for (const a of actions) write(`  - ${a.label}`);
+    write("");
+    write("설치하려면 대화형으로 실행하세요 (에이전트 세션에서 자동 진행).");
+    return;
+  }
+
+  // 대화형: y/N 읽고 설치 실행
+  write(`미설치 항목 ${actions.length}건:`);
+  for (const a of actions) write(`  - ${a.label}`);
+  write("");
+
+  const confirmed = await ask("설치를 진행할까요?");
+  if (!confirmed) {
+    write("설치를 건너뛰었습니다. 나중에 `node scripts/lib/cli.js suggest-tools`로 다시 실행할 수 있습니다.");
+    return;
   }
 
   write("");
-  write("참고:");
-  write("  - Ponytail 스킬(계약 의무)은 플러그인 없이도 구현 단계에서 자동 적용됩니다.");
-  write("  - 플러그인은 추가 향상(지속적 프롬프팅)이며 필수가 아닙니다.");
-  write("  - 설치하지 않아도 프레임워크의 모든 게이트·검증은 완전히 작동합니다.");
-
-  process.stdout.write(out.join("\n") + "\n");
+  for (const action of actions) {
+    try {
+      const result = action.install();
+      write(`  ✓ ${action.label}: ${result}`);
+    } catch (error) {
+      write(`  ✗ ${action.label}: ${error.message}`);
+    }
+  }
+  write("");
+  write("설치 완료. OpenCode는 재시작 후 플러그인이 활성화됩니다.");
+  write("참고: 설치하지 않아도 프레임워크의 모든 게이트·검증은 완전히 작동합니다.");
 }
 
 module.exports = { run };
