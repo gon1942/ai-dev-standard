@@ -138,7 +138,75 @@ function run(args) {
   write("- 진행 중: 해당 Exec Plan을 이어서 작업한다");
   write("- 증거 신선성: 검증 PASS 이후 관련 소스가 변경됐다면 그 PASS는 최신 완료 증거가 아니다 — 재검증한다");
 
+  // ── 보조 도구 상태 ──
+  write("");
+  write("## 보조 도구 상태");
+  write("");
+  const tools = getToolStatus();
+  for (const t of tools) {
+    write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치"}${t.hint ? ` — ${t.hint}` : ""}`);
+  }
+  const uninstalled = tools.filter((t) => !t.installed && t.hint);
+  if (uninstalled.length > 0) {
+    write("");
+    write("미설치 도구 설치: `node scripts/lib/cli.js suggest-tools` 실행 후 선택");
+  }
+
   process.stdout.write(out.join("\n") + "\n");
+}
+
+// 보조 도구 상태 요약 (suggest-tools와 동일한 판정, 출력만 간략히)
+function getToolStatus() {
+  const fs2 = require("fs");
+  const path2 = require("path");
+  const os = require("os");
+  const result = [];
+
+  // Ponytail 플러그인
+  const localOc = path2.join(ROOT, "opencode.json");
+  const globalOc = path2.join(os.homedir(), ".config", "opencode", "opencode.json");
+  let ponytailPlugin = false;
+  for (const p of [localOc, globalOc]) {
+    try {
+      const config = JSON.parse(fs2.readFileSync(p, "utf8"));
+      if (config.plugin && config.plugin.includes("@dietrichgebert/ponytail")) {
+        ponytailPlugin = true;
+        break;
+      }
+    } catch {}
+  }
+  result.push({
+    name: "Ponytail 플러그인",
+    installed: ponytailPlugin,
+    hint: ponytailPlugin ? "" : "구현 중 지속 프롬프팅 보조",
+  });
+
+  // Ponytail 스킬
+  const ponytailSkill =
+    fs2.existsSync(path2.join(ROOT, ".opencode", "skills", "ponytail", "SKILL.md")) ||
+    fs2.existsSync(path2.join(ROOT, ".claude", "skills", "ponytail", "SKILL.md")) ||
+    fs2.existsSync(path2.join(ROOT, ".agents", "skills", "ponytail", "SKILL.md"));
+  result.push({ name: "Ponytail 스킬", installed: ponytailSkill, hint: "" });
+
+  // Playwright
+  let playwright = false;
+  try {
+    const pkg = JSON.parse(fs2.readFileSync(path2.join(ROOT, "package.json"), "utf8"));
+    if ((pkg.devDependencies && pkg.devDependencies["@playwright/test"]) ||
+        (pkg.dependencies && pkg.dependencies["@playwright/test"])) {
+      playwright = true;
+    }
+  } catch {}
+  result.push({
+    name: "Playwright",
+    installed: playwright,
+    hint: playwright ? "" : "E2E 브라우저 테스트",
+  });
+
+  // jscpd — 항상 사용 가능
+  result.push({ name: "중복 검사 (jscpd)", installed: true, hint: "" });
+
+  return result;
 }
 
 module.exports = { run };
