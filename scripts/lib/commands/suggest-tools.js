@@ -140,7 +140,7 @@ async function run(args) {
   for (const tool of TOOLS) {
     const installed = tool.check();
     const status = installed ? "설치됨" : "미설치";
-    const pad = tool.name.length >= 10 ? "  " : " ".repeat(12 - tool.name.length);
+    const pad = " ".repeat(Math.max(1, 22 - tool.name.length));
     write(`  ${tool.name}${pad}${status}    ${tool.desc}`);
     if (!installed && tool.install) {
       uninstalled.push(tool);
