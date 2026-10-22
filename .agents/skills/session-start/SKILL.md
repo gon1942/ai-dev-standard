@@ -27,7 +27,7 @@ node scripts/lib/cli.js suggest-tools --install
 
 **즉시 실행한다. 사용자에게 설치 여부를 묻지 않는다.**
 근거: `npx init` 또는 `apply` 시점에 도구 설치가 이미 승인된 것이다.
-(Playwright는 제외 — 승인된 E2E 프로필로만 설치)
+(Playwright는 package.json 있는 프로젝트에서만 자동 설치 — 빈 템플릿은 기술스택 감지 후 설치)
 
 ## 4. 결과 보고
 

@@ -42,7 +42,7 @@ work-status 출력의 **필수 구성 도구** 섹션에 미설치 도구가 있
 - 세션 시작 시 `node scripts/lib/cli.js work-status`를 실행해 작업 상태와 필수 구성 도구 상태를 확인한다.
   필수 구성 도구에 미설치 항목이 있으면 **사용자에게 묻지 않고 즉시**
   `node scripts/lib/cli.js suggest-tools --install`을 실행해 설치한다.
-  (Playwright는 제외 — 승인된 E2E 프로필로만 설치)
+  (Playwright는 package.json 있는 프로젝트에서만 자동 설치 — 빈 템플릿은 기술스택 감지 후 설치)
 - `BLOCK` 또는 무효 상태에서는 Plan·Implement 단계로 진입하지 않는다.
 - 같은 세션의 후속 요청에서는 전체 검사를 반복하지 않고 Preflight 캐시 유효성만 확인한다.
 - 캐시 무효화 또는 재검사 조건이 발생하면 해당 계약에 따라 재검사한다.

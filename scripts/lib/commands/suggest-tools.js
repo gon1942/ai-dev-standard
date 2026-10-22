@@ -92,14 +92,29 @@ const TOOLS = [
   {
     id: "playwright",
     name: "Playwright",
-    desc: "E2E 브라우저 테스트 (승인형 E2E 프로필로 설치)",
+    desc: fs.existsSync(path.join(ROOT, "package.json"))
+      ? "E2E 브라우저 테스트"
+      : "E2E 테스트 — 기술스택 감지 후 설치",
     check: () => {
       const pkg = readJsonSafe(path.join(ROOT, "package.json"));
       if (pkg && pkg.devDependencies && pkg.devDependencies["@playwright/test"]) return true;
       if (pkg && pkg.dependencies && pkg.dependencies["@playwright/test"]) return true;
       return fs.existsSync(path.join(ROOT, "node_modules", "@playwright", "test"));
     },
-    install: null, // 자동 설치 안 함 — configure-e2e-profile로 승인 후 설치
+    // 조건부 필수: package.json 있는 프로젝트만 자동 설치 (빈 템플릿은 대기)
+    install: fs.existsSync(path.join(ROOT, "package.json"))
+      ? () => {
+          const result = spawnSync("npm", ["install", "--save-dev", "@playwright/test"], {
+            cwd: ROOT, stdio: "inherit",
+          });
+          if (result.status !== 0) throw new Error("npm install 실패");
+          const browser = spawnSync("npx", ["--no-install", "playwright", "install", "chromium"], {
+            cwd: ROOT, stdio: "inherit",
+          });
+          if (browser.status !== 0) throw new Error("Chromium 다운로드 실패");
+          return "@playwright/test + Chromium 설치 완료";
+        }
+      : null,
   },
   {
     id: "jscpd",

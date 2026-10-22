@@ -145,8 +145,8 @@ function run(args) {
   const tools = getToolStatus();
   for (const t of tools) {
     if (t.optional) {
-      // 선택 사항은 별도 표시 (미설치여도 경고하지 않음)
-      write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치 (E2E 프로필로 설치)"} — 선택`);
+      // package.json 없는 템플릿 상태 — 기술스택 감지 후 설치 (실패 아님)
+      write(`- ${t.name}: ${t.installed ? "설치됨" : "기술스택 감지 후 설치 (package.json 없음)"}`);
     } else {
       write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치 — 설치 필요"}`);
     }
@@ -194,7 +194,7 @@ function getToolStatus() {
   result.push({ name: "Ponytail 스킬 (Claude Code)", installed: skillClaude, hint: "" });
   result.push({ name: "Ponytail 스킬 (Codex)", installed: skillCodex, hint: "" });
 
-  // Playwright (선택 사항 — E2E 프로필로 설치, 자동 설치 대상 아님)
+  // Playwright (조건부 필수 — package.json 있으면 필수, 없으면 대기)
   let playwright = false;
   try {
     const pkg = JSON.parse(fs2.readFileSync(path2.join(ROOT, "package.json"), "utf8"));
@@ -203,11 +203,12 @@ function getToolStatus() {
       playwright = true;
     }
   } catch {}
+  const hasPackageJson = fs2.existsSync(path2.join(ROOT, "package.json"));
   result.push({
     name: "Playwright",
     installed: playwright,
     hint: "",
-    optional: true, // 자동 설치 대상 아님 — E2E 프로필로 설치
+    optional: !hasPackageJson, // package.json 없으면 대기, 있으면 필수
   });
 
   // jscpd — 항상 사용 가능
