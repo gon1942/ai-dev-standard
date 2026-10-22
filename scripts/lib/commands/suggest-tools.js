@@ -73,7 +73,7 @@ function installSkill(toolDir) {
 }
 
 async function run(args) {
-  const checkOnly = args.includes("--check") || !process.stdin.isTTY;
+  const checkOnly = args.includes("--check");
   const out = [];
   const write = (line) => { out.push(line); process.stdout.write(line + "\n"); };
 
