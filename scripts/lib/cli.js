@@ -31,6 +31,7 @@ const commands = {
   "decide-improvement": "./commands/decide-improvement",
   "work-status": "./commands/work-status",
   "duplicate-check": "./commands/duplicate-check",
+  "suggest-tools": "./commands/suggest-tools",
 };
 
 function runInternalCommand(name, args) {

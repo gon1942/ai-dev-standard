@@ -68,3 +68,5 @@ repository-test	scripts/test-validate-plan.sh	계획 검증 게이트 회귀 테
 repository-test	scripts/test-plan-templates.sh	Plan 템플릿 회귀 테스트
 repository-test	scripts/test-e2e-gate.sh	E2E 판정·Runner·증거·수렴 회귀 테스트
 repository-test	scripts/test-e2e-profile.sh	승인형 E2E 프로필 제안·구성 회귀 테스트
+target-script	scripts/suggest-tools.sh	보조 도구 설치 안내 (Node 엔진 shim)
+target-script	scripts/lib/commands/suggest-tools.js	보조 도구 설치 안내 (Node 구현)

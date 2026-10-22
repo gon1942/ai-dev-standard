@@ -1,7 +1,7 @@
 {
   "name": "@gon1942/ai-dev-standard",
   "version": "0.1.0",
-  "description": "공통 개발 표준 프레임워크 — Codex·OpenCode·Claude Code를 동일한 절차로 계획·구현·검증·기록하게 만드는 CLI",
+  "description": "\uacf5\ud1b5 \uac1c\ubc1c \ud45c\uc900 \ud504\ub808\uc784\uc6cc\ud06c \u2014 Codex\u00b7OpenCode\u00b7Claude Code\ub97c \ub3d9\uc77c\ud55c \uc808\ucc28\ub85c \uacc4\ud68d\u00b7\uad6c\ud604\u00b7\uac80\uc99d\u00b7\uae30\ub85d\ud558\uac8c \ub9cc\ub4dc\ub294 CLI",
   "bin": {
     "ai-dev-standard": "bin/ai-dev-standard.js"
   },
@@ -27,7 +27,8 @@
     "!docs/generated/project-preflight.json",
     "!docs/generated/project-context-intake.md",
     "!docs/generated/framework-apply-plan.md",
-    "!scripts/reference/"
+    "!scripts/reference/",
+    "vendor/"
   ],
   "scripts": {
     "build:template": "rm -rf dist/template && bash scripts/build-framework-template.sh --output dist/template",

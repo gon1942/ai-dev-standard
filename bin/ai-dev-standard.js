@@ -232,6 +232,7 @@ async function main() {
       "decide-improvement",
       "work-status",
       "duplicate-check",
+      "suggest-tools",
     ].includes(command)
   ) {
     const { runInternalCommand } = require(path.join(PKG_ROOT, "scripts", "lib", "cli.js"));

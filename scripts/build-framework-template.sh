@@ -64,6 +64,27 @@ cp "$ROOT/templates/project/README.md" "$STAGING/README.md"
 # 팀과 공유한다. 따라서 원본 .gitignore를 재사용하지 않고 프로젝트 전용 정책을 쓴다.
 cp "$ROOT/templates/project/gitignore.template" "$STAGING/.gitignore"
 
+# Ponytail 스킬을 세 도구 경로에 배포한다.
+for tool_dir in .agents/skills/ponytail .claude/skills/ponytail .opencode/skills/ponytail; do
+  mkdir -p "$STAGING/$tool_dir"
+  cp "$ROOT/vendor/ponytail/SKILL.md" "$STAGING/$tool_dir/SKILL.md"
+done
+mkdir -p "$STAGING/docs/references/ponytail"
+cp "$ROOT/vendor/ponytail/LICENSE" "$STAGING/docs/references/ponytail/LICENSE"
+cp "$ROOT/vendor/ponytail/UPSTREAM.md" "$STAGING/docs/references/ponytail/UPSTREAM.md"
+# OpenCode 프로젝트 설정 (Ponytail 플러그인)
+cp "$ROOT/templates/project/opencode.json" "$STAGING/opencode.json"
+# Ponytail 스킬을 세 도구 경로에 배포한다.
+for tool_dir in .agents/skills/ponytail .claude/skills/ponytail .opencode/skills/ponytail; do
+  mkdir -p "$STAGING/$tool_dir"
+  cp "$ROOT/vendor/ponytail/SKILL.md" "$STAGING/$tool_dir/SKILL.md"
+done
+mkdir -p "$STAGING/docs/references/ponytail"
+cp "$ROOT/vendor/ponytail/LICENSE" "$STAGING/docs/references/ponytail/LICENSE"
+cp "$ROOT/vendor/ponytail/UPSTREAM.md" "$STAGING/docs/references/ponytail/UPSTREAM.md"
+# OpenCode 프로젝트 설정 (Ponytail 플러그인)
+cp "$ROOT/templates/project/opencode.json" "$STAGING/opencode.json" 2>/dev/null || true
+
 # GitHub Template로 만든 저장소에서도 빈 공식 기록 영역이 유지되도록 한다.
 for directory in \
   docs/exec-plans/active \
