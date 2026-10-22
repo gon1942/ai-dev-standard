@@ -4,6 +4,19 @@
 > 규칙·절차·실행 인터페이스의 진실 공급원은 `docs/`에 있다.
 > 세부 규칙을 이 파일에 복제하지 않는다.
 
+## 0. 세션 시작 필수 절차
+
+모든 에이전트는 세션 시작 시 다음 명령을 실행하고 결과를 사용자에게 요약 보고한다.
+이 절차 없이는 활성 작업·보조 도구 상태를 알 수 없다.
+
+```bash
+bash scripts/session-preflight.sh --start
+node scripts/lib/cli.js work-status
+```
+
+work-status 출력의 **보조 도구 상태** 섹션에 미설치 도구가 있으면
+사용자에게 설치를 안내하고, 승인 후 `node scripts/lib/cli.js suggest-tools --install`로 설치한다.
+
 ## 1. 불변 원칙
 
 - 요청 범위 밖 변경을 하지 않는다.
