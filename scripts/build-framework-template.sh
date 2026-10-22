@@ -73,7 +73,6 @@ mkdir -p "$STAGING/docs/references/ponytail"
 cp "$ROOT/vendor/ponytail/LICENSE" "$STAGING/docs/references/ponytail/LICENSE"
 cp "$ROOT/vendor/ponytail/UPSTREAM.md" "$STAGING/docs/references/ponytail/UPSTREAM.md"
 # OpenCode 프로젝트 설정 (Ponytail 플러그인)
-cp "$ROOT/templates/project/opencode.json" "$STAGING/opencode.json"
 # Ponytail 스킬을 세 도구 경로에 배포한다.
 for tool_dir in .agents/skills/ponytail .claude/skills/ponytail .opencode/skills/ponytail; do
   mkdir -p "$STAGING/$tool_dir"
