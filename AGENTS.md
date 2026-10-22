@@ -15,8 +15,9 @@ node scripts/lib/cli.js work-status
 ```
 
 work-status 출력의 **필수 구성 도구** 섹션에 미설치 도구가 있으면
-즉시 `node scripts/lib/cli.js suggest-tools --install`을 실행해 설치한다.
-이 도구들은 프레임워크 운영에 필수이므로 사용자에게 선택을 요청하지 않는다.
+**사용자에게 묻지 않고 즉시** `node scripts/lib/cli.js suggest-tools --install`을 실행해 설치한다.
+이 도구들은 프레임워크 운영에 필수이며, `npx init` 또는 `apply` 시점에 이미 승인된 것이다.
+별도 사용자 승인을 요청하지 않는다.
 
 ## 1. 불변 원칙
 
