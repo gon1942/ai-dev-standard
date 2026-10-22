@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TMP_ROOT="$(mktemp -d)"
 PLAN="docs/exec-plans/active/plan.md"
 trap 'rm -rf -- "$TMP_ROOT"' EXIT
@@ -104,6 +105,16 @@ write_plan() {
 | AC | 판정 | 증거 |
 |---|---|---|
 | AC-01 | PASS | 기본 검증 PASS |
+
+## E2E 프로필 제안
+
+- 준비 상태: 구성 필요
+- 선택 프로필: node-api
+- 선택 사유: API 시스템 검증에 적합
+- 대상 AC: ${acs}
+- 설치 영향: 개발 의존성에 node:test만 사용
+- 구성 명령: npm install --save-dev node-test
+- 거부/실패 대안: 수동 확인으로 대체
 EOF
 }
 
@@ -114,6 +125,17 @@ new_fixture() {
   write_env "$project"
   write_plan "$project" "$needed" "$method" "$acs"
   printf '%s\n' "$project"
+}
+
+finalize_fixture() {
+  local project="$1"
+  (cd "$project" && git init -q && git add -A && git commit -q -m "fixture")
+  local real_fp
+  real_fp="$(cd "$ROOT" && AI_DEV_STANDARD_ROOT="$project" node -e "
+    const p = require('./scripts/lib/evidence.js');
+    console.log(p.computeSourceFingerprint('$PLAN') || 'null');
+  ")"
+  printf '\n## 자동 검증 증거\n\n### 실행 2026-10-22T00:00:00Z\n- 실행 시각: 2026-10-22T00:00:00Z\n- 실행 명령: fixture\n- 종료 코드: 0\n- 결과 요약: PASS\n- 소스 지문: %s\n' "$real_fp" >> "$project/$PLAN"
 }
 
 write_e2e_config() {
@@ -129,6 +151,7 @@ EOF
 
 # 1. 새 버전 템플릿은 판정 섹션을 제공하고, '불필요' Plan은 추가 실행 없이 통과한다.
 UNNEEDED="$(new_fixture unneeded 불필요 '해당 없음' '해당 없음')"
+finalize_fixture "$UNNEEDED"
 expect_ok '불필요 E2E Plan 검증' run_cli "$UNNEEDED" validate-plan "$PLAN"
 expect_ok '불필요 E2E Plan 수렴' run_cli "$UNNEEDED" converge-plan "$PLAN"
 
@@ -138,12 +161,14 @@ expect_blocked 'E2E 필요인데 방식·대상 AC 누락' run_cli "$INVALID" va
 
 # 3. 기존 Plan은 검증 계약 버전 표기가 없으면 그대로 통과한다.
 LEGACY="$(new_fixture legacy 불필요 '해당 없음' '해당 없음')"
+(cd "$LEGACY" && git init -q && git add -A && git commit -q -m "fixture")
 sed -i '/^- 검증 계약 버전: 2$/d' "$LEGACY/$PLAN"
 expect_ok '레거시 Plan 호환' run_cli "$LEGACY" validate-plan "$PLAN"
 
 # 4. 자동 E2E는 등록된 command + args만 실행해 PASS 증거를 남기고 수렴한다.
 AUTO="$(new_fixture auto 필요 '자동 Browser E2E' 'AC-01')"
 write_e2e_config "$AUTO" 0
+finalize_fixture "$AUTO"
 expect_ok '자동 E2E Plan 검증' run_cli "$AUTO" validate-plan "$PLAN"
 expect_ok '자동 E2E 증거 기록' run_cli "$AUTO" record-e2e-evidence "$PLAN"
 grep -Fxq -- '- 종료 코드: 0' "$AUTO/$PLAN" || fail '자동 E2E 종료 코드 증거가 없습니다'
@@ -194,6 +219,7 @@ cat >> "$MANUAL/$PLAN" <<'EOF'
 - 판정: PASS
 EOF
 expect_ok '수동 UAT 증거 확인' run_cli "$MANUAL" record-e2e-evidence "$PLAN"
+finalize_fixture "$MANUAL"
 expect_ok '수동 UAT Plan 수렴' run_cli "$MANUAL" converge-plan "$PLAN"
 
 # 9. 명령은 셸을 사용하지 않는다. 인자가 셸 치환처럼 보이더라도 파일이 생성되면 안 된다.

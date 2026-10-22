@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { ROOT, fail, sectionInside } = require("../util");
+const { computeSourceFingerprint } = require("../evidence");
 const {
   parseDecision,
   isManualUat,
@@ -73,17 +74,61 @@ function run(args) {
     }
   }
 
-  // bash: scripts/verify-plan.sh — set -e로 실패 전파. node 엔진 호출로 동치.
-  const verifyPlan = spawnSync(process.execPath, [CLI, "verify-plan", planFile], {
-    stdio: "inherit",
-    cwd: ROOT,
-  });
-  if (verifyPlan.status !== 0) {
-    process.exit(verifyPlan.status === null ? 1 : verifyPlan.status);
+  // ── 지문 비교로 검증 재사용 판정 ──
+  // 최신 PASS 증거의 소스 지문이 현재 지문과 일치하면 verify 재실행을 생략한다.
+  // 불일치·확인불가 → BLOCKED (record-verification-evidence 재실행 요구).
+  const latestFingerprint = extractLatestPassFingerprint(plan);
+  const currentFingerprint = computeSourceFingerprint(planFile);
+
+  if (latestFingerprint && currentFingerprint && latestFingerprint === currentFingerprint) {
+    process.stdout.write("=== 최신 PASS 증거 재사용 (소스 지문 일치 — verify 재실행 생략) ===\n");
+  } else if (!currentFingerprint) {
+    fail(
+      "CONVERGENCE: BLOCKED — 소스 지문을 확인할 수 없습니다 (Git 상태 불가).\n" +
+        "record-verification-evidence를 다시 실행한 뒤 재시도하세요.",
+      1
+    );
+  } else if (!latestFingerprint) {
+    fail(
+      "CONVERGENCE: BLOCKED — 최신 PASS 증거에 소스 지문이 없습니다 (레거시 형식).\n" +
+        "record-verification-evidence를 다시 실행한 뒤 재시도하세요.",
+      1
+    );
+  } else {
+    fail(
+      "CONVERGENCE: BLOCKED — 소스가 마지막 검증 이후 변경되었습니다 (지문 불일치).\n" +
+        "record-verification-evidence를 다시 실행한 뒤 재시도하세요.",
+      1
+    );
   }
+
   process.stdout.write(
     "CONVERGENCE: PASS — 모든 AC, 검증, 리뷰 증거가 충족되었습니다. READY_FOR_REVIEW 선언 가능.\n"
   );
+}
+
+// 계획 파일에서 최신 PASS 증거의 소스 지문을 추출한다.
+function extractLatestPassFingerprint(plan) {
+  const evidenceSection = sectionInside(plan, /^## 자동 검증 증거$/);
+  const entries = [];
+  let current = null;
+  for (const line of evidenceSection) {
+    if (line.startsWith("### 실행 ")) current = { lines: [] };
+    if (current) current.lines.push(line);
+    if (current && !line.trim()) {
+      entries.push(current);
+      current = null;
+    }
+  }
+  if (current) entries.push(current);
+
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i].lines.join("\n");
+    if (/- 종료 코드: 0/.test(entry) && /- 소스 지문: ([a-f0-9]{64})/.test(entry)) {
+      return (entry.match(/- 소스 지문: ([a-f0-9]{64})/) || [])[1] || null;
+    }
+  }
+  return null;
 }
 
 module.exports = { run };

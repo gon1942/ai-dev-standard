@@ -63,4 +63,52 @@ function sourceState(planFile) {
   ];
 }
 
-module.exports = { resolveActivePlan, sourceState };
+// 내용 기반 소스 지문 — HEAD + binary diff + untracked 파일 경로·내용을 해시한다.
+// allowlist: 해당 Exec Plan 파일과 docs/generated/jscpd-baseline.json만 제외.
+// Git 확인 불가 → null 반환 (converge는 BLOCKED 처리).
+function computeSourceFingerprint(planFile) {
+  const git = (args) => spawnSync("git", args, { cwd: ROOT, encoding: "buffer" });
+  const inGit = git(["rev-parse", "--is-inside-work-tree"]);
+  if (inGit.status !== 0 || inGit.stdout.toString().trim() !== "true") {
+    return null;
+  }
+  const head = git(["rev-parse", "HEAD"]);
+  if (head.status !== 0) return null;
+
+  const allowlist = [planFile, "docs/generated/jscpd-baseline.json"];
+  const pathspecExcludes = allowlist
+    .filter((p) => fs.existsSync(path.join(ROOT, p)))
+    .map((p) => `:(exclude)${p}`);
+
+  // staged + unstaged diff vs HEAD (binary, allowlist 제외)
+  const diff = git(["diff", "HEAD", "--binary", ...pathspecExcludes]);
+  if (diff.status !== 0) return null;
+
+  // untracked 파일 목록 (allowlist 제외)
+  const untrackedRaw = spawnSync(
+    "git",
+    ["-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
+    { cwd: ROOT, encoding: "utf8" }
+  );
+  if (untrackedRaw.status !== 0) return null;
+  const untrackedFiles = untrackedRaw.stdout
+    .split("\n")
+    .filter((f) => f.trim() !== "" && !allowlist.includes(normalizeRelative(f)))
+    .sort();
+
+  const hash = crypto.createHash("sha256");
+  hash.update(`HEAD:${head.stdout.toString().trim()}\n`);
+  hash.update(diff.stdout);
+  hash.update(`\nUNTRACKED:${untrackedFiles.length}\n`);
+  for (const file of untrackedFiles) {
+    hash.update(`${file}\n`);
+    try {
+      hash.update(fs.readFileSync(path.join(ROOT, file)));
+    } catch {
+      hash.update("<read-fail>");
+    }
+  }
+  return hash.digest("hex");
+}
+
+module.exports = { resolveActivePlan, sourceState, computeSourceFingerprint };

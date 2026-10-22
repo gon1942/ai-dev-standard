@@ -6,7 +6,7 @@
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { ROOT, appendSectionEntry } = require("../util");
-const { resolveActivePlan, sourceState } = require("../evidence");
+const { resolveActivePlan, sourceState, computeSourceFingerprint } = require("../evidence");
 
 const CLI = path.resolve(__dirname, "..", "cli.js");
 
@@ -31,12 +31,14 @@ function markdownCode(value) {
 function appendEvidence(planAbs, planFile, exitCode, sourceLines) {
   const timestamp = new Date().toISOString();
   const result = exitCode === 0 ? "PASS" : "FAIL";
+  const fingerprint = computeSourceFingerprint(planFile);
   const entry = [
     `### 실행 ${timestamp}`,
     `- 실행 시각: ${timestamp}`,
     `- 실행 명령: \`node scripts/lib/cli.js verify-plan ${markdownCode(planFile)}\``,
     `- 종료 코드: ${exitCode}`,
     `- 결과 요약: ${result} (verify-plan 종료 코드 기준; 전체 출력은 기록하지 않음)`,
+    `- 소스 지문: ${fingerprint ? fingerprint : "확인불가(Git 아님 또는 오류)"}`,
     ...sourceLines,
   ].join("\n");
   appendSectionEntry(planAbs, "## 자동 검증 증거", entry);

@@ -738,6 +738,56 @@ cp "$FW/scripts/reference/"*.sh "$FW/scripts/"
   compare_outputs "후보-잘못된결정" "$BC" "$TMP/v7-bash.out" "$NC" "$TMP/v7-node.out"
 }
 
+# v8: 승인된 Node API E2E 프로필 구성 → 설정 파일·출력 동치
+{
+  BD="$TMP/v8-bash"; ND="$TMP/v8-node"
+  setup_case "$BD" configure-e2e-profile.sh
+  for D in "$BD" "$ND"; do
+    mkdir -p "$D/docs/product-specs" "$D/docs/exec-plans/active"
+    : > "$D/package-lock.json"
+    cat > "$D/docs/product-specs/spec.md" <<'EOS'
+# Product Spec: E2E profile parity
+
+- 상태: approved
+
+## 완료 조건 (Acceptance Criteria)
+
+| ID | 완료 조건 | 기대 결과 |
+|---|---|---|
+| AC-01 | API 흐름 | PASS |
+EOS
+    cat > "$D/docs/exec-plans/active/plan.md" <<'EOS'
+# Exec Plan: E2E profile parity
+
+- 상태: active
+- 승인: approved
+- 검증 계약 버전: 2
+- 제품 명세: docs/product-specs/spec.md
+
+## E2E 판정
+
+- 필요 여부: 필요
+- 방식: API/System E2E
+- 대상 AC: AC-01
+
+## E2E 프로필 제안
+
+- 준비 상태: 구성 필요
+- 선택 프로필: node-api
+- 대상 AC: AC-01
+- 설치 영향: Node 기본 테스트 실행을 사용한다
+- 구성 명령: node scripts/lib/cli.js configure-e2e-profile docs/exec-plans/active/plan.md node-api
+- 거부/실패 대안: 수동 UAT 또는 미검증 보류
+EOS
+  done
+  set +e
+  (cd "$BD" && bash scripts/configure-e2e-profile.sh docs/exec-plans/active/plan.md node-api) > "$TMP/v8-bash.out" 2>&1; BC=$?
+  node_cli "$ND" configure-e2e-profile docs/exec-plans/active/plan.md node-api > "$TMP/v8-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "E2E-프로필-Node-구성" "$BC" "$TMP/v8-bash.out" "$NC" "$TMP/v8-node.out"
+  compare_trees "E2E-프로필-Node-파일" "$BD" "$ND"
+}
+
 echo "동치성: $PASS_COUNT PASS, $FAIL_COUNT FAIL"
 if [ "$FAIL_COUNT" -gt 0 ]; then
   echo "PARITY: FAIL" >&2

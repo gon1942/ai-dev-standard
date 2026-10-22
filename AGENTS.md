@@ -57,7 +57,7 @@
 | Plan | `docs/skill-contracts/standard-plan.md`, `docs/coding-standards.md`, `docs/definition-of-done.md` |
 | Implement | `docs/skill-contracts/standard-implement.md`, `docs/coding-standards.md`, `docs/testing-policy.md` |
 | Verify | `docs/skill-contracts/standard-verify.md`, `docs/testing-policy.md`, 필요 시 `docs/skill-contracts/standard-uat.md` |
-| Review | `docs/skill-contracts/standard-review.md`, `docs/definition-of-done.md` |
+| Review | `docs/skill-contracts/standard-review.md`, `docs/skill-contracts/standard-human-decision.md`, `docs/definition-of-done.md` |
 | Improve | `docs/skill-contracts/standard-improve.md`, `docs/agent-improvements/README.md` |
 
 ## 4. 조건부 문서
@@ -83,7 +83,7 @@
 - Implement 진입 전에는 승인된 Product Spec·Exec Plan과 계획 게이트 통과가 필요하다.
 - 스킬은 검증 전략 선정, AC 해석, 오류 분석, 의미적 충족 여부 판단을 담당한다.
 - Node 런타임은 필수 명령을 직접 실행하고, Node 게이트는 증거 형식·승인 상태·상태 전이를 검사한다.
-- `READY_FOR_REVIEW` 선언 전 Node 게이트는 필수 자동 검증을 현재 작업 트리에서 다시 실행한다.
+- `READY_FOR_REVIEW` 선언 전 필수 자동 검증을 수행한다. 단, 최신 PASS 증거의 내용 기반 소스 지문이 현재와 완전히 일치하면 재실행을 생략하고 그 증거를 재사용할 수 있다.
 - 수동 확인·UAT 증거의 최신성은 Verify 계약과 공식 Exec Plan 기록을 따른다.
 - `READY_FOR_REVIEW` 선언 전에는 필수 검증, 독립 리뷰, 수렴 게이트를 통과해야 한다.
 - 공식 검증 증거와 AC별 판정은 Exec Plan에 기록한다.
