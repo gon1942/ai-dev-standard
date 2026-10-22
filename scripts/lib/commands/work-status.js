@@ -138,7 +138,7 @@ function run(args) {
   write("- 진행 중: 해당 Exec Plan을 이어서 작업한다");
   write("- 증거 신선성: 검증 PASS 이후 관련 소스가 변경됐다면 그 PASS는 최신 완료 증거가 아니다 — 재검증한다");
 
-  // ── 필수 구성 도구 상태 ──
+  // ── 필수 구성 도구 상태 (도구별 확인) ──
   write("");
   write("## 필수 구성 도구");
   write("");
@@ -181,12 +181,13 @@ function getToolStatus() {
     hint: ponytailPlugin ? "" : "구현 중 지속 프롬프팅 보조",
   });
 
-  // Ponytail 스킬
-  const ponytailSkill =
-    fs2.existsSync(path2.join(ROOT, ".opencode", "skills", "ponytail", "SKILL.md")) ||
-    fs2.existsSync(path2.join(ROOT, ".claude", "skills", "ponytail", "SKILL.md")) ||
-    fs2.existsSync(path2.join(ROOT, ".agents", "skills", "ponytail", "SKILL.md"));
-  result.push({ name: "Ponytail 스킬", installed: ponytailSkill, hint: "" });
+  // Ponytail 스킬 (도구별 확인)
+  const skillOc = fs2.existsSync(path2.join(ROOT, ".opencode", "skills", "ponytail", "SKILL.md"));
+  const skillClaude = fs2.existsSync(path2.join(ROOT, ".claude", "skills", "ponytail", "SKILL.md"));
+  const skillCodex = fs2.existsSync(path2.join(ROOT, ".agents", "skills", "ponytail", "SKILL.md"));
+  result.push({ name: "Ponytail 스킬 (OpenCode)", installed: skillOc, hint: "" });
+  result.push({ name: "Ponytail 스킬 (Claude Code)", installed: skillClaude, hint: "" });
+  result.push({ name: "Ponytail 스킬 (Codex)", installed: skillCodex, hint: "" });
 
   // Playwright
   let playwright = false;

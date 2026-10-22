@@ -48,57 +48,58 @@ const TOOLS = [
     },
   },
   {
-    id: "ponytail-skill",
-    name: "Ponytail 스킬",
-    desc: "구현 계약 의무 — 세 도구 공통 (Codex·Claude·OpenCode)",
-    check: () => {
-      return (
-        fs.existsSync(path.join(ROOT, ".opencode", "skills", "ponytail", "SKILL.md")) ||
-        fs.existsSync(path.join(ROOT, ".claude", "skills", "ponytail", "SKILL.md")) ||
-        fs.existsSync(path.join(ROOT, ".agents", "skills", "ponytail", "SKILL.md"))
-      );
-    },
+    id: "ponytail-skill-opencode",
+    name: "Ponytail 스킬 (OpenCode)",
+    desc: "구현 계약 의무",
+    check: () => fs.existsSync(path.join(ROOT, ".opencode", "skills", "ponytail", "SKILL.md")),
     install: () => {
       const source = path.join(ROOT, "vendor", "ponytail", "SKILL.md");
       if (!fs.existsSync(source)) throw new Error(`원본 없음: ${source}`);
-      for (const dir of [".opencode", ".claude", ".agents"]) {
-        const target = path.join(ROOT, dir, "skills", "ponytail", "SKILL.md");
-        if (!fs.existsSync(target)) {
-          fs.mkdirSync(path.dirname(target), { recursive: true });
-          fs.copyFileSync(source, target);
-        }
-      }
-      return "세 도구 스킬 복사 완료";
+      const target = path.join(ROOT, ".opencode", "skills", "ponytail", "SKILL.md");
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+      return "스킬 복사 완료";
+    },
+  },
+  {
+    id: "ponytail-skill-claude",
+    name: "Ponytail 스킬 (Claude Code)",
+    desc: "구현 계약 의무",
+    check: () => fs.existsSync(path.join(ROOT, ".claude", "skills", "ponytail", "SKILL.md")),
+    install: () => {
+      const source = path.join(ROOT, "vendor", "ponytail", "SKILL.md");
+      if (!fs.existsSync(source)) throw new Error(`원본 없음: ${source}`);
+      const target = path.join(ROOT, ".claude", "skills", "ponytail", "SKILL.md");
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+      return "스킬 복사 완료";
+    },
+  },
+  {
+    id: "ponytail-skill-codex",
+    name: "Ponytail 스킬 (Codex)",
+    desc: "구현 계약 의무",
+    check: () => fs.existsSync(path.join(ROOT, ".agents", "skills", "ponytail", "SKILL.md")),
+    install: () => {
+      const source = path.join(ROOT, "vendor", "ponytail", "SKILL.md");
+      if (!fs.existsSync(source)) throw new Error(`원본 없음: ${source}`);
+      const target = path.join(ROOT, ".agents", "skills", "ponytail", "SKILL.md");
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+      return "스킬 복사 완료";
     },
   },
   {
     id: "playwright",
     name: "Playwright",
-    desc: "E2E 브라우저 테스트 자동화",
+    desc: "E2E 브라우저 테스트 (승인형 E2E 프로필로 설치)",
     check: () => {
       const pkg = readJsonSafe(path.join(ROOT, "package.json"));
       if (pkg && pkg.devDependencies && pkg.devDependencies["@playwright/test"]) return true;
       if (pkg && pkg.dependencies && pkg.dependencies["@playwright/test"]) return true;
       return fs.existsSync(path.join(ROOT, "node_modules", "@playwright", "test"));
     },
-    install: () => {
-      let mgr = "npm";
-      if (fs.existsSync(path.join(ROOT, "pnpm-lock.yaml"))) mgr = "pnpm";
-      else if (fs.existsSync(path.join(ROOT, "yarn.lock"))) mgr = "yarn";
-      else if (!fs.existsSync(path.join(ROOT, "package.json"))) {
-        throw new Error("package.json이 없습니다. Node.js 프로젝트에서만 설치 가능합니다.");
-      }
-      const installCmd = mgr === "npm" ? ["install", "--save-dev", "@playwright/test"]
-        : mgr === "pnpm" ? ["add", "--save-dev", "@playwright/test"]
-        : ["add", "--dev", "@playwright/test"];
-      const result = spawnSync(mgr, installCmd, { cwd: ROOT, stdio: "inherit" });
-      if (result.status !== 0) throw new Error(`${mgr} install 실패`);
-      const browser = spawnSync("npx", ["--no-install", "playwright", "install", "chromium"], {
-        cwd: ROOT, stdio: "inherit",
-      });
-      if (browser.status !== 0) throw new Error("Chromium 다운로드 실패");
-      return `@playwright/test + Chromium 설치 완료 (${mgr})`;
-    },
+    install: null, // 자동 설치 안 함 — configure-e2e-profile로 승인 후 설치
   },
   {
     id: "jscpd",

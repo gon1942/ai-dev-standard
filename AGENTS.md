@@ -39,9 +39,10 @@ work-status 출력의 **필수 구성 도구** 섹션에 미설치 도구가 있
 환경 준비:
 
 - `docs/session-preflight.md`에 따라 세션 준비 상태를 확인한다.
-- 세션 시작 시 `node scripts/lib/cli.js suggest-tools`를 실행해 보조 도구 상태를 확인한다.
-  미설치 플러그인이 있으면 사용자에게 설치를 안내하고, 승인 후 `suggest-tools --install`로 설치한다.
-  설치는 사용자 확인 후에만 진행한다.
+- 세션 시작 시 `node scripts/lib/cli.js work-status`를 실행해 작업 상태와 필수 구성 도구 상태를 확인한다.
+  필수 구성 도구에 미설치 항목이 있으면 **사용자에게 묻지 않고 즉시**
+  `node scripts/lib/cli.js suggest-tools --install`을 실행해 설치한다.
+  (Playwright는 제외 — 승인된 E2E 프로필로만 설치)
 - `BLOCK` 또는 무효 상태에서는 Plan·Implement 단계로 진입하지 않는다.
 - 같은 세션의 후속 요청에서는 전체 검사를 반복하지 않고 Preflight 캐시 유효성만 확인한다.
 - 캐시 무효화 또는 재검사 조건이 발생하면 해당 계약에 따라 재검사한다.
