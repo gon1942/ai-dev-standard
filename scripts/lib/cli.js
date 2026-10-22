@@ -13,6 +13,8 @@ const commands = {
   "validate-plan": "./commands/validate-plan",
   verify: "./commands/verify",
   "verify-plan": "./commands/verify-plan",
+  "record-verification-evidence": "./commands/record-verification-evidence",
+  "record-e2e-evidence": "./commands/record-e2e-evidence",
   "converge-plan": "./commands/converge-plan",
   "check-framework": "./commands/check-framework",
   "analyze-project": "./commands/analyze-project",
@@ -27,6 +29,7 @@ const commands = {
   "new-improvement-candidate": "./commands/new-improvement-candidate",
   "decide-improvement": "./commands/decide-improvement",
   "work-status": "./commands/work-status",
+  "duplicate-check": "./commands/duplicate-check",
 };
 
 function runInternalCommand(name, args) {

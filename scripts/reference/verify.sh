@@ -87,6 +87,15 @@ echo ""
 echo "[3/3] Tests (all)"
 runCheck "Tests" "$REQUIRE_TEST" "$DIR/test.sh" all
 
+# 선택 검사: 신규 중복 클론 경고 (jscpd 기준선). 경고 방식 — FAIL로 판정하지 않는다.
+if [ "${AI_DEV_STANDARD_DUPLICATE_CHECK:-}" = "true" ]; then
+  echo ""
+  echo "[추가] 중복 검사 (신규 클론 — 경고)"
+  if ! bash "$DIR/duplicate-check.sh"; then
+    echo "--- Duplicate check 건너뜀 (jscpd 실행 불가) ---"
+  fi
+fi
+
 echo ""
 echo "=========================================="
 if [ "$FAIL" -eq 0 ] && [ "$MODE" = "active" ]; then

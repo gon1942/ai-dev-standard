@@ -89,6 +89,15 @@ function run(args) {
   process.stdout.write("\n[3/3] Tests (all)\n");
   runCheck("Tests", requireTest, process.execPath, [CLI, "test", "all"]);
 
+  // 선택 검사: 신규 중복 클론 경고 (jscpd 기준선). 경고 방식 — FAIL로 판정하지 않는다.
+  if (env.AI_DEV_STANDARD_DUPLICATE_CHECK === "true") {
+    process.stdout.write("\n[추가] 중복 검사 (신규 클론 — 경고)\n");
+    const dup = spawnSync(process.execPath, [CLI, "duplicate-check"], { stdio: "inherit", cwd: ROOT });
+    if (dup.status !== 0) {
+      process.stdout.write("--- Duplicate check 건너뜀 (jscpd 실행 불가) ---\n");
+    }
+  }
+
   process.stdout.write("\n==========================================\n");
   if (!failed && mode === "active") {
     process.stdout.write(" RESULT: PASS — READY_FOR_REVIEW 가능\n");

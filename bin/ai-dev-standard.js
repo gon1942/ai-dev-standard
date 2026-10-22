@@ -215,6 +215,8 @@ async function main() {
       "validate-plan",
       "verify",
       "verify-plan",
+      "record-verification-evidence",
+      "record-e2e-evidence",
       "converge-plan",
       "check-framework",
       "analyze-project",
@@ -229,6 +231,7 @@ async function main() {
       "new-improvement-candidate",
       "decide-improvement",
       "work-status",
+      "duplicate-check",
     ].includes(command)
   ) {
     const { runInternalCommand } = require(path.join(PKG_ROOT, "scripts", "lib", "cli.js"));

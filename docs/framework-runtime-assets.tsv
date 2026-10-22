@@ -5,6 +5,8 @@ target-script	scripts/lint.sh	프로젝트 lint 어댑터 (Node 엔진 shim)
 target-script	scripts/test.sh	프로젝트 test 어댑터 (Node 엔진 shim)
 target-script	scripts/lib/cli.js	내부 엔진 진입점
 target-script	scripts/lib/util.js	엔진 공용 유틸
+target-script	scripts/lib/evidence.js	검증 증거 공용 경계·소스 상태 유틸
+target-script	scripts/lib/e2e.js	E2E 판정·설정 공용 유틸
 target-script	scripts/lib/commands/new-product-spec.js	제품 명세 생성 (Node)
 target-script	scripts/lib/commands/new-exec-plan.js	실행 계획 생성 (Node)
 target-script	scripts/lib/commands/lint.js	lint 어댑터 (Node 구현)
@@ -12,6 +14,8 @@ target-script	scripts/lib/commands/test.js	test 어댑터 (Node 구현)
 target-script	scripts/lib/commands/validate-plan.js	계획 게이트 (Node 구현)
 target-script	scripts/lib/commands/verify.js	통합 검증 러너 (Node 구현)
 target-script	scripts/lib/commands/verify-plan.js	계획 검증 진입 (Node 구현)
+target-script	scripts/lib/commands/record-verification-evidence.js	검증 실행 증거 자동 기록 (Node 구현)
+target-script	scripts/lib/commands/record-e2e-evidence.js	E2E 검증 증거 기록·확인 (Node 구현)
 target-script	scripts/lib/commands/converge-plan.js	수렴 게이트 (Node 구현)
 target-script	scripts/lib/commands/check-framework.js	골격 검사 (Node 구현)
 target-script	scripts/lib/commands/analyze-project.js	읽기 전용 소스 분석 (Node 구현)
@@ -26,9 +30,13 @@ target-script	scripts/lib/commands/complete-exec-plan.js	완료 보관 이동 (N
 target-script	scripts/lib/commands/new-improvement-candidate.js	개선 후보 기록 (Node 구현)
 target-script	scripts/lib/commands/decide-improvement.js	개선 후보 결정 (Node 구현)
 target-script	scripts/lib/commands/work-status.js	세션 작업 기록 복원 요약 (Node 구현)
+target-script	scripts/lib/commands/duplicate-check.js	신규 중복 클론 경고 (Node 구현, jscpd 래퍼)
+target-script	scripts/duplicate-check.sh	신규 중복 클론 경고 (Node 엔진 shim)
 target-script	scripts/verify.sh	통합 검증 진입점 (Node 엔진 shim)
 target-script	scripts/validate-plan.sh	Implement 전 계획 검증 (Node 엔진 shim)
 target-script	scripts/verify-plan.sh	계획 기반 검증 진입점 (Node 엔진 shim)
+target-script	scripts/record-verification-evidence.sh	검증 실행 증거 자동 기록 (Node 엔진 shim)
+target-script	scripts/record-e2e-evidence.sh	E2E 검증 증거 기록·확인 (Node 엔진 shim)
 target-script	scripts/converge-plan.sh	최종 증거 수렴 판정 (Node 엔진 shim)
 target-script	scripts/new-product-spec.sh	제품 명세 생성
 target-script	scripts/new-exec-plan.sh	실행 계획 생성
@@ -55,3 +63,4 @@ repository-test	scripts/test-review.sh	Review 비교 기준 처리 회귀 테스
 repository-test	scripts/test-project-preflight.sh	Project Preflight 회귀 테스트
 repository-test	scripts/test-validate-plan.sh	계획 검증 게이트 회귀 테스트
 repository-test	scripts/test-plan-templates.sh	Plan 템플릿 회귀 테스트
+repository-test	scripts/test-e2e-gate.sh	E2E 판정·Runner·증거·수렴 회귀 테스트
