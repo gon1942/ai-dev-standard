@@ -144,12 +144,17 @@ function run(args) {
   write("");
   const tools = getToolStatus();
   for (const t of tools) {
-    write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치 — 설치 필요"}`);
+    if (t.optional) {
+      // 선택 사항은 별도 표시 (미설치여도 경고하지 않음)
+      write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치 (E2E 프로필로 설치)"} — 선택`);
+    } else {
+      write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치 — 설치 필요"}`);
+    }
   }
-  const uninstalledTools = tools.filter((t) => !t.installed);
+  const uninstalledTools = tools.filter((t) => !t.installed && !t.optional);
   if (uninstalledTools.length > 0) {
     write("");
-    write("미설치 도구가 있습니다: `node scripts/lib/cli.js suggest-tools --install` 실행");
+    write("미설치 필수 도구가 있습니다: `node scripts/lib/cli.js suggest-tools --install` 실행");
   }
 
   process.stdout.write(out.join("\n") + "\n");
@@ -189,7 +194,7 @@ function getToolStatus() {
   result.push({ name: "Ponytail 스킬 (Claude Code)", installed: skillClaude, hint: "" });
   result.push({ name: "Ponytail 스킬 (Codex)", installed: skillCodex, hint: "" });
 
-  // Playwright
+  // Playwright (선택 사항 — E2E 프로필로 설치, 자동 설치 대상 아님)
   let playwright = false;
   try {
     const pkg = JSON.parse(fs2.readFileSync(path2.join(ROOT, "package.json"), "utf8"));
@@ -201,7 +206,8 @@ function getToolStatus() {
   result.push({
     name: "Playwright",
     installed: playwright,
-    hint: playwright ? "" : "E2E 브라우저 테스트",
+    hint: "",
+    optional: true, // 자동 설치 대상 아님 — E2E 프로필로 설치
   });
 
   // jscpd — 항상 사용 가능

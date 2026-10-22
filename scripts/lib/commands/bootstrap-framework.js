@@ -177,7 +177,7 @@ AI_DEV_STANDARD_DUPLICATE_CHECK=true
       copyDocument(`docs/skill-contracts/${contract}`);
     }
     copyRuntimeAssets();
-    for (const tool of [".opencode", ".claude"]) {
+    for (const tool of [".opencode", ".claude", ".agents"]) {
       for (const sourceFile of findSkillFiles(tool)) {
         copyAdapter(path.relative(SCRIPT_ROOT, sourceFile));
       }
