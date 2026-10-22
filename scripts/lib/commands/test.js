@@ -15,6 +15,38 @@ function toolExists(tool) {
   return probe.status === 0;
 }
 
+const FRAMEWORK_PATHS = [
+  "scripts/lib/",
+  "scripts/reference/",
+  "scripts/test-",
+  "docs/skill-contracts/",
+  "docs/framework-runtime-assets.tsv",
+  "docs/definition-of-done.md",
+  "docs/testing-policy.md",
+  ".gitignore",
+  "templates/",
+  "global-hooks/",
+  "bin/",
+];
+
+function frameworkSourceChanged() {
+  const git = (args) => spawnSync("git", args, { cwd: ROOT, encoding: "utf8" });
+  const inGit = git(["rev-parse", "--is-inside-work-tree"]);
+  if (inGit.status !== 0 || inGit.stdout.trim() !== "true") {
+    return true;
+  }
+  const diff = git(["diff", "--name-only", "HEAD"]);
+  if (diff.status !== 0) return true;
+  const modified = (diff.stdout || "").split("\n").filter(Boolean);
+  const untracked = git(["ls-files", "--others", "--exclude-standard"]);
+  if (untracked.status !== 0) return true;
+  const newFiles = (untracked.stdout || "").split("\n").filter(Boolean);
+  const allFiles = [...modified, ...newFiles];
+  return allFiles.some((file) =>
+    FRAMEWORK_PATHS.some((prefix) => file.startsWith(prefix))
+  );
+}
+
 function run(args) {
   const scope = args[0] || "all";
   if (!["unit", "integration", "regression", "e2e", "all"].includes(scope)) {
@@ -63,10 +95,16 @@ function run(args) {
   };
 
   // 프레임워크 원본 전용 회귀 묶음 — 배포 대상에는 test-framework.sh가 없으므로 건너뛴다.
+  // 조건부 실행: 프레임워크 소스 무변경이면 SKIP (일반 작업 시 15초 절약).
   if (scope !== "unit" && scope !== "integration") {
     const frameworkTest = path.join(ROOT, "scripts", "test-framework.sh");
     if (fs.existsSync(frameworkTest)) {
-      runTests("framework regression", "bash", [frameworkTest]);
+      if (scope !== "regression" && !frameworkSourceChanged()) {
+        process.stdout.write("--- framework regression: SKIP (프레임워크 소스 무변경) ---\n");
+        ranAny = true;
+      } else {
+        runTests("framework regression", "bash", [frameworkTest]);
+      }
     }
   }
 
