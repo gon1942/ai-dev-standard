@@ -29,7 +29,7 @@ compare_outputs() {
   fi
   if ! diff -q <(normalize < "$bash_out") <(normalize < "$node_out") >/dev/null; then
     echo "FAIL [$label] 출력 불일치:" >&2
-    diff <(normalize < "$bash_out") <(normalize < "$node_out") | head -5 >&2
+    diff <(normalize < "$bash_out") <(normalize < "$node_out") | head -5 >&2 || true
     FAIL_COUNT=$((FAIL_COUNT + 1))
     return
   fi
@@ -44,7 +44,7 @@ compare_trees() {
   node_list="$(cd "$node_root" && find . -type f -not -path './scripts/*' | sort | normalize)"
   if [ "$bash_list" != "$node_list" ]; then
     echo "FAIL [$label] 생성 파일 목록 불일치:" >&2
-    diff <(printf '%s\n' "$bash_list") <(printf '%s\n' "$node_list") >&2
+    diff <(printf '%s\n' "$bash_list") <(printf '%s\n' "$node_list") >&2 || true
     FAIL_COUNT=$((FAIL_COUNT + 1))
     return
   fi
@@ -52,7 +52,7 @@ compare_trees() {
   while IFS= read -r rel; do
     if ! diff -q <(normalize < "$bash_root/$rel") <(normalize < "$node_root/$rel") >/dev/null; then
       echo "FAIL [$label] 파일 내용 불일치: $rel" >&2
-      diff <(normalize < "$bash_root/$rel") <(normalize < "$node_root/$rel") | head -5 >&2
+      diff <(normalize < "$bash_root/$rel") <(normalize < "$node_root/$rel") | head -5 >&2 || true
       FAIL_COUNT=$((FAIL_COUNT + 1))
       return
     fi
@@ -450,16 +450,35 @@ EOF
   setup_case "$BD" install-global-session-hooks.sh
   mkdir -p "$BD/global-hooks" "$ND" "$HB" "$HN"
   cp "$ROOT/global-hooks/session-start.sh" "$ROOT/global-hooks/opencode-session-preflight.mjs" "$BD/global-hooks/"
+  for H in "$HB" "$HN"; do
+    SOURCE_FOR_HOME="$BD"
+    [ "$H" = "$HN" ] && SOURCE_FOR_HOME="$ROOT"
+    mkdir -p "$H/.codex" "$H/.claude"
+    node - "$H" "$SOURCE_FOR_HOME" "$H/.ai-dev-standard/hooks/session-start.sh" <<'NODE'
+const fs = require('fs');
+const [home, sourceRoot, hookPath] = process.argv.slice(2);
+const oldCommand = `AI_DEV_STANDARD_ROOT=${JSON.stringify(`${sourceRoot}-old`)} bash ${JSON.stringify(hookPath)}`;
+const settings = { hooks: { SessionStart: [{ hooks: [
+  { type: 'command', command: oldCommand },
+  { type: 'command', command: 'echo preserve-me' },
+] }] } };
+for (const file of ['.codex/hooks.json', '.claude/settings.json']) {
+  fs.writeFileSync(`${home}/${file}`, `${JSON.stringify(settings)}\n`);
+}
+NODE
+  done
   set +e
   (cd "$BD" && HOME="$HB" AI_DEV_STANDARD_GLOBAL_ROOT="$HB/.ai-dev-standard" bash scripts/install-global-session-hooks.sh) > "$TMP/p5-bash.out" 2>&1; BC=$?
   HOME="$HN" AI_DEV_STANDARD_GLOBAL_ROOT="$HN/.ai-dev-standard" AI_DEV_STANDARD_ROOT="$ROOT" node "$ROOT/scripts/lib/cli.js" install-global-session-hooks > "$TMP/p5-node.out" 2>&1; NC=$?
   set -e
+  (cd "$BD" && HOME="$HB" AI_DEV_STANDARD_GLOBAL_ROOT="$HB/.ai-dev-standard" bash scripts/install-global-session-hooks.sh) >/dev/null
+  HOME="$HN" AI_DEV_STANDARD_GLOBAL_ROOT="$HN/.ai-dev-standard" AI_DEV_STANDARD_ROOT="$ROOT" node "$ROOT/scripts/lib/cli.js" install-global-session-hooks >/dev/null
   compare_outputs "설치-출력" "$BC" "$TMP/p5-bash.out" "$NC" "$TMP/p5-node.out"
   bash_norm="$(cd "$HB" && find . -type f | sort | sed "s#$BD#SRCROOT#g")"
   node_norm="$(cd "$HN" && find . -type f | sort | sed "s#$ROOT#SRCROOT#g")"
   if [ "$bash_norm" != "$node_norm" ]; then
     echo "FAIL [설치-파일목록] 불일치" >&2
-    diff <(printf '%s\n' "$bash_norm") <(printf '%s\n' "$node_norm") >&2
+    diff <(printf '%s\n' "$bash_norm") <(printf '%s\n' "$node_norm") >&2 || true
     FAIL_COUNT=$((FAIL_COUNT + 1))
   else
     PASS_COUNT=$((PASS_COUNT + 1))
@@ -472,6 +491,29 @@ EOF
     fi
   done <<< "$bash_norm"
   [ "$ok" -eq 0 ] && PASS_COUNT=$((PASS_COUNT + 1))
+  for H in "$HB" "$HN"; do
+    EXPECTED_SOURCE_ROOT="$BD"
+    [ "$H" = "$HN" ] && EXPECTED_SOURCE_ROOT="$ROOT"
+    for F in "$H/.codex/hooks.json" "$H/.claude/settings.json"; do
+      if node -e '
+        const fs = require("fs");
+        const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+        const expectedRoot = process.argv[2];
+        const hooks = settings.hooks.SessionStart.flatMap(group => group.hooks || []);
+        const frameworkHooks = hooks.filter(hook => /ai-dev-standard.*session-start\.sh/.test(hook.command || ""));
+        if (frameworkHooks.length !== 1) process.exit(1);
+        if (!frameworkHooks[0].command.includes("AI_DEV_STANDARD_FRAMEWORK_ROOT=")) process.exit(2);
+        if (!frameworkHooks[0].command.includes(`AI_DEV_STANDARD_FRAMEWORK_ROOT=${JSON.stringify(expectedRoot)}`)) process.exit(3);
+        if (/(^| )AI_DEV_STANDARD_ROOT=/.test(frameworkHooks[0].command)) process.exit(3);
+        if (!hooks.some(hook => hook.command === "echo preserve-me")) process.exit(4);
+      ' "$F" "$EXPECTED_SOURCE_ROOT"; then
+        :
+      else
+        echo "FAIL [설정 마이그레이션] 기존 hook 교체 또는 사용자 hook 보존 실패: $F" >&2
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+      fi
+    done
+  done
 }
 
 # ── 케이스 22~24: 5b-1 (prepare-project-context·plan-framework-apply) ──
@@ -596,7 +638,7 @@ cp "$FW/scripts/reference/"*.sh "$FW/scripts/"
   node_list="$(cd "$TN" && find . -type f | sort)"
   if [ "$bash_list" != "$node_list" ]; then
     echo "FAIL [골격생성-파일목록] 불일치" >&2
-    diff <(printf '%s\n' "$bash_list") <(printf '%s\n' "$node_list") | head -5 >&2
+    diff <(printf '%s\n' "$bash_list") <(printf '%s\n' "$node_list") | head -5 >&2 || true
     FAIL_COUNT=$((FAIL_COUNT + 1))
   else
     PASS_COUNT=$((PASS_COUNT + 1))
@@ -619,7 +661,7 @@ cp "$FW/scripts/reference/"*.sh "$FW/scripts/"
   node_sess="$(sed -E 's/"checked_at": "[^"]*"/"checked_at": "TIME"/' "$ST/.ai-dev-standard/session-preflight.json")"
   if [ "$bash_sess" != "$node_sess" ]; then
     echo "FAIL [프리플라이트-세션내용] 불일치" >&2
-    diff <(printf '%s\n' "$bash_sess") <(printf '%s\n' "$node_sess") >&2
+    diff <(printf '%s\n' "$bash_sess") <(printf '%s\n' "$node_sess") >&2 || true
     FAIL_COUNT=$((FAIL_COUNT + 1))
   else
     PASS_COUNT=$((PASS_COUNT + 1))

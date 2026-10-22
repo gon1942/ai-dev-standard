@@ -186,7 +186,7 @@ EOF
   done
   copy_runtime_assets
 
-  for tool in .opencode .claude; do
+  for tool in .opencode .claude .agents; do
     skill_root="$SCRIPT_ROOT/$tool/skills"
     if [ -d "$skill_root" ]; then
       while IFS= read -r source_file; do
