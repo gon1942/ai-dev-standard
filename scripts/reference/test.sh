@@ -20,11 +20,32 @@ run_tests() {
 
 # 이 프레임워크 원본에만 존재하는 회귀 테스트 묶음이다. bootstrap 대상에는
 # test-framework.sh를 복사하지 않으므로 일반 프로젝트의 테스트 책임을 바꾸지 않는다.
+# 조건부 실행: 프레임워크 소스가 무변경이면 SKIP (일반 작업 시 15초 절약).
+framework_source_changed() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0  # Git 불가 → 항상 실행
+  local changed
+  changed="$(git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null)" || return 0
+  printf '%s\n' "$changed" | grep -qE \
+    '^(scripts/lib/|scripts/reference/|scripts/test-|docs/skill-contracts/|docs/framework-runtime-assets\.tsv|docs/definition-of-done\.md|docs/testing-policy\.md|\.gitignore|templates/|global-hooks/|bin/)' \
+    && return 0  # 프레임워크 변경 감지
+  return 1  # 프레임워크 무변경
+}
+
 case "$SCOPE" in
   unit|integration) ;;
-  *)
+  regression)
     if [ -x "$SCRIPT_DIR/test-framework.sh" ]; then
       run_tests "framework regression" bash "$SCRIPT_DIR/test-framework.sh"
+    fi
+    ;;
+  *)
+    if [ -x "$SCRIPT_DIR/test-framework.sh" ]; then
+      if framework_source_changed; then
+        run_tests "framework regression" bash "$SCRIPT_DIR/test-framework.sh"
+      else
+        echo "--- framework regression: SKIP (프레임워크 소스 무변경) ---"
+        RAN_ANY=1
+      fi
     fi
     ;;
 esac
