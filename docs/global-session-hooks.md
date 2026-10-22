@@ -16,10 +16,11 @@ scripts/install-global-session-hooks.sh
 기존 설정은 삭제하지 않는다. 기존 설정 파일을 처음 수정할 때는 같은 위치에
 `.ai-dev-standard.bak` 백업을 한 번 남긴다. 다시 실행해도 동일 hook을 중복 추가하지 않는다.
 
-설치기는 hook 명령에 `AI_DEV_STANDARD_ROOT`를 명시해 설치 시점의 지속 가능한 프레임워크
-경로를 전달한다. 반대로 프로젝트에 포함된 `global-hooks/session-start.sh` 자체에는 개발자
-로컬 절대 경로를 넣지 않는다. 환경 변수가 없으면 hook은 현재 프로젝트의
-`scripts/session-preflight.sh`만 사용한다.
+설치기는 hook 명령에 `AI_DEV_STANDARD_FRAMEWORK_ROOT`를 명시해 설치 시점의 지속 가능한
+프레임워크 원본 경로를 전달한다. 현재 프로젝트 경로는 hook 실행 시 Git 루트 또는 현재
+작업 디렉터리에서 별도로 결정한다. 기존 `AI_DEV_STANDARD_ROOT` hook 설정은 재설치 시
+새 변수 방식으로 마이그레이션하며, hook은 이전 설정이 남아 있어도 `work-status`에
+프레임워크 원본 경로가 전달되지 않도록 처리한다.
 
 ## 동작 범위
 

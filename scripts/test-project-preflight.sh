@@ -113,4 +113,30 @@ if grep -Fq '# Work Status (Session Restore)' "$unapplied_project/session-hook-o
   exit 1
 fi
 
+# 전역 프레임워크 원본 경로가 지정돼도 work-status는 현재 프로젝트를 대상으로 해야 한다.
+applied_project="$TMP_ROOT/applied-session"
+mkdir -p "$applied_project"
+bootstrap "$applied_project"
+(
+  cd "$applied_project"
+  AI_DEV_STANDARD_ROOT="$ROOT" bash "$ROOT/global-hooks/session-start.sh"
+) > "$applied_project/session-hook-output"
+assert_contains "대상: $applied_project" "$applied_project/session-hook-output"
+assert_contains '## 활성 작업 (docs/exec-plans/active/)' "$applied_project/session-hook-output"
+if grep -Fq "대상: $ROOT" "$applied_project/session-hook-output" || \
+  grep -Fq '2026-10-19-global-session-hooks.md' "$applied_project/session-hook-output"; then
+  echo 'FAIL: Session hook의 work-status가 프로젝트가 아닌 프레임워크 저장소를 대상으로 했습니다' >&2
+  exit 1
+fi
+(
+  cd "$applied_project"
+  AI_DEV_STANDARD_FRAMEWORK_ROOT="$ROOT" bash "$ROOT/global-hooks/session-start.sh"
+) > "$applied_project/session-hook-new-root-output"
+assert_contains "대상: $applied_project" "$applied_project/session-hook-new-root-output"
+if grep -Fq "대상: $ROOT" "$applied_project/session-hook-new-root-output" || \
+  grep -Fq '2026-10-19-global-session-hooks.md' "$applied_project/session-hook-new-root-output"; then
+  echo 'FAIL: 새 환경변수 경로에서도 work-status가 프레임워크 저장소를 대상으로 했습니다' >&2
+  exit 1
+fi
+
 echo 'PASS: Project Preflight scenarios (T2-T12 + damaged SessionStart recovery; T1은 Node active PASS로 포함)'

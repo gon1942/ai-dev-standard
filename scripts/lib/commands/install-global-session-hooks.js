@@ -11,11 +11,34 @@ const path = require("path");
 const FRAMEWORK_ROOT = path.resolve(__dirname, "..", "..", "..");
 
 function mergeSessionHook(codexFile, claudeFile, hookPath, sourceRoot) {
-  const command = `AI_DEV_STANDARD_ROOT=${JSON.stringify(sourceRoot)} bash ${JSON.stringify(hookPath)}`;
+  const command = `AI_DEV_STANDARD_FRAMEWORK_ROOT=${JSON.stringify(sourceRoot)} bash ${JSON.stringify(hookPath)}`;
+  const invocation = `bash ${JSON.stringify(hookPath)}`;
   for (const file of [codexFile, claudeFile]) {
     const data = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
     data.hooks ||= {};
     data.hooks.SessionStart ||= [];
+    let changed = false;
+    data.hooks.SessionStart = data.hooks.SessionStart
+      .map((group) => {
+        const hooks = group.hooks || [];
+        let keptManagedHook = false;
+        const retained = hooks.filter((hook) => {
+          const existingCommand = hook.command || "";
+          const isManagedHook =
+            (existingCommand.startsWith("AI_DEV_STANDARD_ROOT=") ||
+              existingCommand.startsWith("AI_DEV_STANDARD_FRAMEWORK_ROOT=")) &&
+            existingCommand.endsWith(invocation);
+          if (!isManagedHook) return true;
+          if (existingCommand === command && !keptManagedHook) {
+            keptManagedHook = true;
+            return true;
+          }
+          changed = true;
+          return false;
+        });
+        return retained.length > 0 ? { ...group, hooks: retained } : null;
+      })
+      .filter(Boolean);
     const exists = data.hooks.SessionStart.some((group) =>
       (group.hooks || []).some((hook) => hook.command === command)
     );
@@ -23,6 +46,9 @@ function mergeSessionHook(codexFile, claudeFile, hookPath, sourceRoot) {
       data.hooks.SessionStart.push({
         hooks: [{ type: "command", command, timeout: 15, statusMessage: "AI Dev Standard preflight" }],
       });
+      changed = true;
+    }
+    if (changed) {
       if (fs.existsSync(file)) {
         const backup = `${file}.ai-dev-standard.bak`;
         if (!fs.existsSync(backup)) fs.copyFileSync(file, backup);

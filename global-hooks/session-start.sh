@@ -4,10 +4,10 @@ set -uo pipefail
 
 PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 SESSION_SCRIPT="$PROJECT_DIR/scripts/session-preflight.sh"
-# 전역 설치기는 AI_DEV_STANDARD_ROOT로 지속 경로의 원본을 명시한다. 프로젝트에
+# 전역 설치기는 AI_DEV_STANDARD_FRAMEWORK_ROOT로 지속 경로의 원본을 명시한다. 프로젝트에
 # 포함된 hook은 이 값이 없어도 프로젝트 내부 runner만 사용해야 하며, 개발자 로컬
 # 절대 경로를 기본값으로 둘 수 없다.
-FRAMEWORK_ROOT="${AI_DEV_STANDARD_ROOT:-$PROJECT_DIR}"
+FRAMEWORK_ROOT="${AI_DEV_STANDARD_FRAMEWORK_ROOT:-${AI_DEV_STANDARD_ROOT:-$PROJECT_DIR}}"
 
 if [ ! -x "$SESSION_SCRIPT" ] && [ ! -f "$PROJECT_DIR/.ai-dev-standard.env" ]; then
   printf '%s\n' "AI Dev Standard: framework not applied at $PROJECT_DIR. Analyze first and propose framework application; do not modify existing files without approval."
@@ -15,7 +15,7 @@ if [ ! -x "$SESSION_SCRIPT" ] && [ ! -f "$PROJECT_DIR/.ai-dev-standard.env" ]; t
 fi
 
 RUNNER="$SESSION_SCRIPT"
-if [ -n "${AI_DEV_STANDARD_ROOT:-}" ] && [ -x "$FRAMEWORK_ROOT/scripts/session-preflight.sh" ]; then
+if [ -n "${AI_DEV_STANDARD_FRAMEWORK_ROOT:-${AI_DEV_STANDARD_ROOT:-}}" ] && [ -x "$FRAMEWORK_ROOT/scripts/session-preflight.sh" ]; then
   # 전역 원본을 실행해, 대상의 일부 template/docs가 삭제된 경우에도 안전하게 복구한다.
   RUNNER="$FRAMEWORK_ROOT/scripts/session-preflight.sh"
 fi
@@ -29,7 +29,9 @@ if AI_DEV_STANDARD_FRAMEWORK_ROOT="$FRAMEWORK_ROOT" "$RUNNER" --project-dir "$PR
   status="$(AI_DEV_STANDARD_FRAMEWORK_ROOT="$FRAMEWORK_ROOT" "$RUNNER" --project-dir "$PROJECT_DIR" --status 2>/dev/null || true)"
   printf '%s\n' "AI Dev Standard Session Preflight completed: $status"
   if [ -f "$PROJECT_DIR/scripts/lib/cli.js" ]; then
-    node "$PROJECT_DIR/scripts/lib/cli.js" work-status
+    # AI_DEV_STANDARD_ROOT는 이전 전역 hook에서 원본 저장소 경로로 설정했을 수 있다.
+    # 프로젝트에 포함된 CLI는 자기 위치를 기준으로 대상 경로를 정해야 한다.
+    AI_DEV_STANDARD_ROOT= node "$PROJECT_DIR/scripts/lib/cli.js" work-status
   else
     printf '%s\n' "AI Dev Standard work-status is BLOCKED. scripts/lib/cli.js가 없으므로 작업 기록을 복원할 수 없습니다."
   fi
