@@ -14,8 +14,9 @@ bash scripts/session-preflight.sh --start
 node scripts/lib/cli.js work-status
 ```
 
-work-status 출력의 **보조 도구 상태** 섹션에 미설치 도구가 있으면
-사용자에게 설치를 안내하고, 승인 후 `node scripts/lib/cli.js suggest-tools --install`로 설치한다.
+work-status 출력의 **필수 구성 도구** 섹션에 미설치 도구가 있으면
+즉시 `node scripts/lib/cli.js suggest-tools --install`을 실행해 설치한다.
+이 도구들은 프레임워크 운영에 필수이므로 사용자에게 선택을 요청하지 않는다.
 
 ## 1. 불변 원칙
 

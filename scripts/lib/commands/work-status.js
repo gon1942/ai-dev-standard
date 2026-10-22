@@ -138,18 +138,18 @@ function run(args) {
   write("- 진행 중: 해당 Exec Plan을 이어서 작업한다");
   write("- 증거 신선성: 검증 PASS 이후 관련 소스가 변경됐다면 그 PASS는 최신 완료 증거가 아니다 — 재검증한다");
 
-  // ── 보조 도구 상태 ──
+  // ── 필수 구성 도구 상태 ──
   write("");
-  write("## 보조 도구 상태");
+  write("## 필수 구성 도구");
   write("");
   const tools = getToolStatus();
   for (const t of tools) {
-    write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치"}${t.hint ? ` — ${t.hint}` : ""}`);
+    write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치 — 설치 필요"}`);
   }
-  const uninstalled = tools.filter((t) => !t.installed && t.hint);
-  if (uninstalled.length > 0) {
+  const uninstalledTools = tools.filter((t) => !t.installed);
+  if (uninstalledTools.length > 0) {
     write("");
-    write("미설치 도구 설치: `node scripts/lib/cli.js suggest-tools` 실행 후 선택");
+    write("미설치 도구가 있습니다: `node scripts/lib/cli.js suggest-tools --install` 실행");
   }
 
   process.stdout.write(out.join("\n") + "\n");

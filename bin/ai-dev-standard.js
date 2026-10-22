@@ -104,6 +104,19 @@ async function commandInit(destination) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.cpSync(TEMPLATE_DIR, dest, { recursive: true });
 
+  // 필수 구성 도구 자동 설치
+  const suggestTools = path.join(dest, "scripts", "lib", "commands", "suggest-tools.js");
+  if (fs.existsSync(suggestTools)) {
+    info("");
+    info("필수 구성 도구를 설치합니다...");
+    const result = spawnSync(process.execPath,
+      [path.join(dest, "scripts", "lib", "cli.js"), "suggest-tools"],
+      { stdio: "inherit", cwd: dest, env: { ...process.env, AI_DEV_STANDARD_ROOT: dest } });
+    if (result.status !== 0) {
+      info("일부 도구 설치가 실패했습니다. 설치 후 cd 후 suggest-tools로 재시도하세요.");
+    }
+  }
+
   info("");
   info("완료. 다음 단계:");
   info(`  1. cd ${destination}`);
