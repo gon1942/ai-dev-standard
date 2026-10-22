@@ -29,6 +29,7 @@
 ```
 세션 시작
   → 프로젝트 규칙·Preflight 확인 (session-preflight)
+  → 보조 도구 설치 상태 확인 (suggest-tools) — 미설치 도구가 있으면 사용자에게 안내
   → 에이전트가 `node scripts/lib/cli.js work-status` 실행
   → 사용자에게 활성 작업·승인 대기·최근 완료·Git 변경 상태 요약 보고
   → 새 요청이 있으면 관련 활성 작업과 충돌 여부 확인, 없으면 요청 대기 보고
