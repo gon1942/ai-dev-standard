@@ -14,16 +14,20 @@
 AI는 `READY_FOR_REVIEW`까지만 선언할 수 있다.
 `READY_FOR_REVIEW`가 되려면 아래 2절의 자동 기준을,
 `done`이 되려면 3절의 인간 기준까지 충족해야 한다.
+사람 승인·개선 요청·보류의 선택과 기록은
+`docs/skill-contracts/standard-human-decision.md`를 따른다.
 
 ## 2. 자동 완료 기준 (READY_FOR_REVIEW)
 
 1. **요구사항 충족**: 제품 명세의 AC 표가 모두 충족됨
-2. **검증 통과**: `scripts/verify-plan.sh <실행계획>` 종료코드 0 (공통 검증 `verify.sh` 포함)
+2. **검증 통과**: `node scripts/lib/cli.js record-verification-evidence <실행계획>` 종료코드 0
+   (내부에서 공통 검증 `verify-plan`·`verify`를 직접 실행하고 실행 증거를 기록)
    (lint + typecheck + 테스트 전부)
 3. **회귀 없음**: 기존 테스트가 새 변경으로 깨지지 않음
 4. **기록 완료**: 실행 계획 파일에 완료 기록 섹션 작성됨
 5. **범위 준수**: git diff가 계획 범위 내 (벗어난 변경은 완료 기록에 명시)
 6. **수렴 판정**: `scripts/converge-plan.sh <실행계획>`이 통과
+7. **E2E 판정 준수**: 검증 계약 버전 2 Plan에서 E2E가 `필요`이면 자동 E2E 또는 수동 UAT의 PASS 증거가 있다.
 
 **AI가 작성한 PASS 보고 자체는 증거가 아니다.**
 증거는 로컬 스크립트 실행 출력이며, 완료 기록에 명시된다.
@@ -99,6 +103,7 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
 
 - 상태: active
 - 승인: approved
+- 검증 계약 버전: 2
 - 제품 명세: docs/product-specs/<명세파일>.md
 
 ## 구현 계획
@@ -123,6 +128,15 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
 ## 회귀 검증 대상
 
 - 영향을 받는 기존 기능 또는 테스트: ...
+
+## E2E 판정
+
+- 필요 여부: 필요 | 불필요
+- 방식: 자동 Browser E2E | 수동 Browser UAT | API/System E2E | CLI E2E | 해당 없음
+- 판정 근거: <AC·사용자 흐름·서비스 경계·기존 테스트 구성을 분석한 근거>
+- 대상 AC: AC-01, AC-02 | 해당 없음
+- 자동 실행 명령 또는 수동 UAT 시나리오: <프로젝트 E2E 설정을 쓸 명령 또는 실제 사용자 절차>
+- 사전 조건: <서버·테스트 데이터·권한> | 해당 없음
 
 ## 완료 기록 (완료 시 작성)
 
@@ -156,6 +170,37 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
 - `미검증`은 READY_FOR_REVIEW를 숨기기 위한 PASS가 아니며, 완료 기록의 미검증 항목에도
   구체적으로 반영한다.
 - 실행 계획에서는 제품 명세의 각 AC가 검증 계획과 AC 판정에 각각 한 번씩 있어야 한다.
+
+### 5.2 E2E 검증 증거
+
+검증 계약 버전 2 Plan에서 `필요`로 승인된 E2E는 별도 증거를 남긴다.
+
+- 자동 E2E: 프로젝트가 추적하는 `.ai-dev-standard/e2e.json`의 `command`와 `args` 배열을
+  `node scripts/lib/cli.js test e2e`가 셸 없이 실행한다. `record-e2e-evidence`가 실제 명령,
+  종료 코드, 안전한 결과 요약과 소스 상태를 `## E2E 검증 증거`에 기록한다.
+- 수동 Browser UAT: 실제 시나리오를 수행한 뒤 같은 섹션에 `### 수동 UAT <식별자>`, 실행 일시,
+  관찰 결과, `- 판정: PASS`를 기록한다.
+- 설정 없음, 실행 실패, 브라우저·외부 환경 부재는 `미검증`이며 E2E 대상 AC를 PASS로 바꾸지
+  않는다. `converge-plan`도 통과하지 않는다.
+- E2E가 `불필요`이거나 버전 표기가 없는 레거시 Plan에는 E2E 실행을 추가로 강제하지 않는다.
+
+### 5.1 자동 검증 증거
+
+`node scripts/lib/cli.js record-verification-evidence <활성-실행계획>`은 검증 전의 Git 기반
+소스 상태(계획 파일 자체 제외)를 수집하고 `verify-plan`을 직접 실행한다. PASS와 FAIL 모두
+실행 계획의 `## 자동 검증 증거` 아래에 다음 기계적 사실만 추가한다.
+
+- 실행 시각과 실제 실행 명령
+- 종료 코드와 PASS/FAIL 요약
+- Git HEAD 및 계획 파일을 제외한 작업 트리 식별자(또는 Git 미확인 사유)
+
+전체 명령 출력, 환경 변수 값, 비밀값은 자동 기록하지 않는다. 이 명령은 **AC 판정, 리뷰 판정,
+상태, 승인, `READY_FOR_REVIEW`, `done`을 변경하지 않는다.** AC의 의미적 충족 여부와 UAT
+증거는 에이전트가 Verify 계약에 따라 별도로 기록하고, 사람 승인 경계도 그대로 유지한다.
+
+기본 `verify-plan`과 `converge-plan`은 계속 읽기 전용이다. 자동 기록이 필요할 때만 전용
+명령을 사용한다. `scripts/record-verification-evidence.sh`는 Unix 환경의 편의 shim이며,
+Windows를 포함한 공통 진입점은 Node CLI다.
 
 ## 6. 미검증 항목의 의무 명시
 

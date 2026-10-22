@@ -11,7 +11,9 @@ for suite in \
   scripts/test-review.sh \
   scripts/test-project-preflight.sh \
   scripts/test-validate-plan.sh \
-  scripts/test-plan-templates.sh; do
+  scripts/test-plan-templates.sh \
+  scripts/test-e2e-gate.sh \
+  scripts/test-verification-evidence.sh; do
   echo "=== FRAMEWORK TEST: $suite ==="
   bash "$suite"
 done

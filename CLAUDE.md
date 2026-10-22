@@ -21,7 +21,8 @@ Claude Code는 먼저 `AGENTS.md`를 읽고, 그 다음 필요한 도구별 skil
 ## 요약 (전체는 위 문서에서)
 
 1. 요청 범위 밖 변경 금지
-2. 구현 후 `scripts/verify-plan.sh <실행계획>` 실행 — 결과를 완료 기록에 남긴다
+2. 구현 후 `node scripts/lib/cli.js record-verification-evidence <실행계획>` 실행 —
+   기계적 실행 증거를 남기고 AC 판정은 별도로 기록한다
 3. 모든 새 작업은 `docs/product-specs/`와 `docs/exec-plans/`에 기록한다
 4. 완료 선언은 `READY_FOR_REVIEW`까지만
 5. 실행하지 않은 테스트를 실행했다고 보고하지 않는다
@@ -30,7 +31,11 @@ Claude Code는 먼저 `AGENTS.md`를 읽고, 그 다음 필요한 도구별 skil
    `scripts/bootstrap-framework.sh --init`을 실행하지 않는다.
 7. 기존 프로젝트 적용은 매니페스트에 따라 생성·보존·병합 제안·제외를 먼저 분류하며,
    기존 파일을 자동 덮어쓰지 않는다.
-8. 세션 시작에 Session Preflight를 실행하고, 작업 요청에서는 캐시 상태만 확인한다. BLOCK/무효 상태면 작업을 진행하지 않는다.
+8. 새 세션에서는 Session Preflight 뒤 `node scripts/lib/cli.js work-status`를 실행하고,
+   활성 작업·전환 누락·승인 대기·진행 중·최근 완료·Git 변경을 사용자에게 정확한 건수 또는
+   `없음`으로 보고한다. 사용자가 명령을 직접 실행하거나 요청할 필요는 없다. `승인 대기`는
+   `READY_FOR_REVIEW` 상태의 계획만 뜻한다. 작업 요청에서는 Preflight 캐시 상태만 확인한다.
+   BLOCK/무효 상태면 상태는 보고하되 Plan·Implement를 진행하지 않는다.
 
 ## 프로젝트 스킬
 
@@ -45,5 +50,5 @@ Claude Code는 먼저 `AGENTS.md`를 읽고, 그 다음 필요한 도구별 skil
 
 ## 커맨드
 
-- `/verify` — scripts/verify.sh 실행
+- `/verify` — 실행 계획 기반 검증·증거 기록 실행
 - `/task-record` — 제품 명세·실행 계획 생성/갱신

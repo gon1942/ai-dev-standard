@@ -39,6 +39,22 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
+// 계획 파일의 증거 섹션 끝에 재실행 기록을 추가한다. 각 증거 명령이 완료 기록·AC 판정을
+// 침범하지 않도록 섹션의 다음 ## 헤딩 바로 앞에만 삽입한다.
+function appendSectionEntry(filePath, heading, entry) {
+  const content = fs.readFileSync(filePath, "utf8");
+  const lines = content.split("\n");
+  const headingIndex = lines.findIndex((line) => line === heading);
+  if (headingIndex >= 0) {
+    let insertAt = headingIndex + 1;
+    while (insertAt < lines.length && !/^## /.test(lines[insertAt])) insertAt += 1;
+    lines.splice(insertAt, 0, "", entry);
+    fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+    return;
+  }
+  fs.appendFileSync(filePath, `${content.endsWith("\n") ? "\n" : "\n\n"}${heading}\n\n${entry}\n`, "utf8");
+}
+
 // .ai-dev-standard.env 파싱 — bash `source`와 동일하게 KEY=VALUE 단순 형식만 다룬다.
 function parseEnv(text) {
   const result = {};
@@ -92,6 +108,7 @@ module.exports = {
   timestamp,
   fail,
   ensureDir,
+  appendSectionEntry,
   parseEnv,
   sectionInside,
   sectionRange,

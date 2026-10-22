@@ -41,5 +41,9 @@ require_fixed '| 순서 | 변경 대상 | 변경 내용·인터페이스 | 테�
 require '조사 필요' "$PLAN" "조사 필요 마커 규칙"
 require '^## 검증 계획$' "$PLAN" "검증 계획 섹션"
 require '^## 회귀 검증 대상$' "$PLAN" "회귀 대상 섹션"
+require '^- 검증 계약 버전: 2$' "$PLAN" "검증 계약 버전"
+require '^## E2E 판정$' "$PLAN" "E2E 판정 섹션"
+require '^- 필요 여부: 불필요$' "$PLAN" "E2E 기본 판정"
+require '^- 방식: 해당 없음$' "$PLAN" "E2E 기본 방식"
 
 echo 'PASS: plan templates (spec sections + 6-column work table)'

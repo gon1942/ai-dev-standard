@@ -99,4 +99,18 @@ AI_DEV_STANDARD_FRAMEWORK_ROOT="$ROOT" "$damaged_project/scripts/session-preflig
 [ -f "$damaged_project/AGENTS.md" ] || { echo 'FAIL: 전역 원본으로 AGENTS.md를 복구하지 못함' >&2; exit 1; }
 [ -f "$damaged_project/docs/framework-manifest.md" ] || { echo 'FAIL: 전역 원본으로 docs를 복구하지 못함' >&2; exit 1; }
 
+# 프레임워크가 적용되지 않은 Git 프로젝트에서는 작업 상태 복원을 시도하지 않는다.
+unapplied_project="$TMP_ROOT/unapplied-session"
+mkdir -p "$unapplied_project"
+git -C "$unapplied_project" init -q
+(
+  cd "$unapplied_project"
+  AI_DEV_STANDARD_ROOT="$ROOT" bash "$ROOT/global-hooks/session-start.sh"
+) > "$unapplied_project/session-hook-output"
+assert_contains 'AI Dev Standard: framework not applied' "$unapplied_project/session-hook-output"
+if grep -Fq '# Work Status (Session Restore)' "$unapplied_project/session-hook-output"; then
+  echo 'FAIL: 미적용 프로젝트에서 Session hook이 work-status를 실행했습니다' >&2
+  exit 1
+fi
+
 echo 'PASS: Project Preflight scenarios (T2-T12 + damaged SessionStart recovery; T1은 Node active PASS로 포함)'

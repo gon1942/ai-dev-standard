@@ -60,12 +60,9 @@ STAGING="$(mktemp -d "$OUTPUT_PARENT/.ai-dev-standard-template.XXXXXX")"
 
 # 원본 README는 프레임워크 개발 저장소 설명이다. 배포 대상에는 프로젝트 시작용 README를 둔다.
 cp "$ROOT/templates/project/README.md" "$STAGING/README.md"
-# npm 패키지 맥락에서는 .gitignore가 제외되므로 동봉한 템플릿으로 대체한다.
-if [ -f "$ROOT/.gitignore" ]; then
-  cp "$ROOT/.gitignore" "$STAGING/.gitignore"
-else
-  cp "$ROOT/templates/project/gitignore.template" "$STAGING/.gitignore"
-fi
+# 원본 저장소는 프레임워크 개발 이력을 제외하지만, 설치 프로젝트는 공식 작업 기록을
+# 팀과 공유한다. 따라서 원본 .gitignore를 재사용하지 않고 프로젝트 전용 정책을 쓴다.
+cp "$ROOT/templates/project/gitignore.template" "$STAGING/.gitignore"
 
 # GitHub Template로 만든 저장소에서도 빈 공식 기록 영역이 유지되도록 한다.
 for directory in \
@@ -79,25 +76,13 @@ for directory in \
 done
 
 # 이 목록은 원본 개발 저장소에만 있어야 한다. 혹시 Bootstrap 범위가 넓어져도 배포 전에 실패한다.
-for excluded_path in \
-  docs/generated/project-preflight.md \
-  docs/generated/project-preflight.json \
-  .ai-dev-standard/session-preflight.json \
-  .opencode/node_modules \
-  .opencode/package.json \
-  .opencode/package-lock.json \
-  scripts/test-framework.sh \
-  scripts/test-framework-assets.sh \
-  scripts/test-framework-template.sh \
-  scripts/test-project-preflight.sh \
-  scripts/test-review.sh \
-  scripts/test-validate-plan.sh \
-  scripts/test-plan-templates.sh; do
+while IFS= read -r excluded_path; do
+  case "$excluded_path" in ''|'#'*) continue ;; esac
   if [ -e "$STAGING/$excluded_path" ]; then
     echo "배포 템플릿에 포함되면 안 되는 자산이 있습니다: $excluded_path" >&2
     exit 1
   fi
-done
+done < "$ROOT/scripts/framework-template-excludes.txt"
 
 if find "$STAGING/docs/product-specs" -maxdepth 1 -type f ! -name index.md -print -quit | grep -q .; then
   echo "배포 템플릿에 원본 Product Spec 이력이 포함되었습니다." >&2

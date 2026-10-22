@@ -6,7 +6,16 @@
 
 ## Required actions
 
-- `scripts/verify-plan.sh <계획>`으로 lint, typecheck, test를 실행한다.
+- `node scripts/lib/cli.js record-verification-evidence <계획>`으로 lint, typecheck, test를 직접 실행하고
+  종료 코드·실행 시각·현재 소스 상태의 기계적 증거를 남긴다.
+- 기본 `scripts/verify-plan.sh <계획>`은 읽기 전용 진입점이다. 자동 증거 기록은 전용 명령에서만
+  수행하며, 기록 명령이 PASS여도 AC·리뷰·상태·사람 승인은 바꾸지 않는다.
+- `scripts/record-verification-evidence.sh`는 Unix 편의 shim이다. 도구·운영체제와 무관한
+  공통 실행 경로는 Node CLI다.
+- 검증 계약 버전 2 Plan이 E2E `필요`이면 자동 방식은
+  `node scripts/lib/cli.js record-e2e-evidence <계획>`으로 실제 실행·종료 코드 증거를 기록한다.
+  수동 Browser UAT 방식은 `standard-uat`에 따른 시나리오의 일시·관찰·판정을 기록한 뒤 같은
+  명령으로 증거 형식을 확인한다.
 - AC별로 테스트·수동 확인·측정 중 실제 수행한 증거와 `PASS`/`FAIL`/`미검증`을 기록한다.
 - 버그 작업은 재현 및 회귀를 확인한다.
 - 검증 방법이 `UAT`로 지정된 AC는 `docs/skill-contracts/standard-uat.md` 계약을 함께 따른다.
@@ -38,7 +47,8 @@
 
 ## Outputs
 
-- 실행 명령, 종료 코드, 주요 결과가 남은 검증 증거
+- 자동 기록된 실행 명령·종료 코드·안전한 결과 요약·소스 상태
+- 필요한 경우 자동 E2E 또는 수동 UAT의 E2E 증거
 - AC별 판정
 
 ## Exit conditions / next stage

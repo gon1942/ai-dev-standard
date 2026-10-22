@@ -8,8 +8,9 @@
 
 1. **지침의 진실 공급원은 `docs/`** — AGENTS.md, CLAUDE.md, 각 도구 스킬은
    얇은 어댑터일 뿐 규칙을 복제하지 않는다.
-2. **검증 진입점은 `scripts/verify-plan.sh <실행계획>` 하나** — 공통 검증
-   (`verify.sh`: lint·typecheck·test)과 계획 검토를 함께 실행한다.
+2. **검증 실행·기록 진입점은 `node scripts/lib/cli.js record-verification-evidence <실행계획>`** — 공통 검증
+   (`verify-plan` → `verify`: lint·typecheck·test)을 직접 실행하고 안전한 실행 증거를 계획에 남긴다.
+   기본 `verify-plan`과 `converge-plan`은 읽기 전용이며, `.sh`는 Unix 편의 shim이다.
 3. **AI의 완료 선언 ≠ 기능 완료** — AI는 `READY_FOR_REVIEW`까지만 선언한다.
    완료(`DONE`)는 검증 증거 + 사람 승인으로만 결정된다.
 4. **제품 명세와 실행 계획은 1급 자산** — 모든 새 작업은 `docs/product-specs/`와
@@ -22,6 +23,40 @@
    `scripts/reference/`는 동치성 기준선 원본이다.
 
 ## 2. 표준 작업 흐름
+
+새 세션의 기본 흐름:
+
+```
+세션 시작
+  → 프로젝트 규칙·Preflight 확인 (session-preflight)
+  → 에이전트가 `node scripts/lib/cli.js work-status` 실행
+  → 사용자에게 활성 작업·승인 대기·최근 완료·Git 변경 상태 요약 보고
+  → 새 요청이 있으면 관련 활성 작업과 충돌 여부 확인, 없으면 요청 대기 보고
+  → 요청과 관련된 이전 작업만 상세 확인
+  → 분석 → 계획 → 구현 → 검증 → 변경 사항 검토
+```
+
+`work-status` 실행과 상태 보고는 **모든 새 에이전트 세션의 필수 절차**다. 사용자가
+명령을 직접 실행하거나 별도로 요청할 필요는 없다. Preflight가 `BLOCK`·무효여도 현재 작업
+상태는 보고하되, Plan·Implement에는 진입하지 않고 재검사 또는 복구를 먼저 수행한다.
+
+사용자 보고는 다음 항목을 짧게 포함한다. 없는 항목은 `없음`으로 표시한다.
+
+```text
+세션 작업 상태
+
+- 활성 작업: <총계>
+- 전환 누락: <건수 또는 없음>
+- 승인 대기: <건수 또는 없음>
+- 진행 중: <건수 또는 없음>
+- 최근 완료: <건수 또는 없음>
+- Git 변경: <건수 또는 없음>
+- 요청 상태: 요청 대기 | <요청> — 기존 작업과 충돌 없음 | <충돌 내용>
+```
+
+`승인 대기`는 `work-status`에서 `READY_FOR_REVIEW`로 분류된 계획만 의미한다. 구현·검증·리뷰가 남아 있는 `진행 중` 계획을 승인 대기로 바꾸어 보고하지 않는다.
+
+작업 흐름 상세:
 
 ```
 기능 요청
@@ -37,16 +72,19 @@
    │       질문·확정 요구사항·AC 작성 후 사람 승인(상태: approved)
    ▼
 ④ 실행 계획 생성·승인 — scripts/new-exec-plan.sh <제품명세파일>
+       E2E 필요 여부·방식·근거·대상 AC를 에이전트가 제안하고 사람이 Plan 승인으로 확정
        사람 승인(`- 승인: approved`) 뒤 `scripts/validate-plan.sh <실행계획파일>` 통과
    │
    ▼
 ⑤ 구현 — standard-implement 계약 따름
    │       (계획 범위 내 최소 diff, 기존 동작 유지)
    ▼
-⑥ 검증 — standard-verify 계약과 `scripts/verify-plan.sh <실행계획파일>` 실행
+⑥ 검증 — standard-verify 계약과 `node scripts/lib/cli.js record-verification-evidence <실행계획파일>` 실행
         (공통 lint + typecheck + test 후, 플랜의 검증 계획·회귀 대상 확인.
          검증 방법이 UAT로 지정된 AC는 standard-uat 계약을 함께 수행)
-   │       실패 시 수정 후 재실행 (원인 분석 없는 재시도 금지)
+   │       실행 시각·명령·종료 코드·소스 상태는 자동 기록한다. AC 의미 판정·리뷰·승인은
+   │       자동화하지 않는다. E2E가 필요하면 `record-e2e-evidence` 또는 수동 UAT 증거를
+   │       추가한다. 실패 시 수정 후 재실행 (원인 분석 없는 재시도 금지)
    ▼
 ⑦ 독립 리뷰 — standard-review 계약 또는 사람 리뷰
    │
@@ -66,6 +104,9 @@
    ▼
 ⑫ 선택적 회고 — 반복 문제는 `docs/agent-improvements/candidates/`에 후보로 기록
 ```
+
+사람 승인·보류·수정 요청의 공통 선택과 기록 방식은
+`docs/skill-contracts/standard-human-decision.md`를 따른다.
 
 ### 2.1 신규·기존 프로젝트 온보딩
 

@@ -38,6 +38,7 @@ function run(args) {
 
 - 상태: active
 - 승인: pending
+- 검증 계약 버전: 2
 - 제품 명세: ${specFile}
 - 생성: ${date}, 담당: <이름/도구>
 
@@ -67,6 +68,15 @@ function run(args) {
 ## 회귀 검증 대상
 
 - 영향을 받는 기존 기능 또는 테스트: ...
+
+## E2E 판정
+
+- 필요 여부: 불필요
+- 방식: 해당 없음
+- 판정 근거: ...
+- 대상 AC: 해당 없음
+- 자동 실행 명령 또는 수동 UAT 시나리오: 해당 없음
+- 사전 조건: 해당 없음
 `;
 
   fs.writeFileSync(planFile, content, "utf8");

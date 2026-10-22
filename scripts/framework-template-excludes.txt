@@ -1,0 +1,16 @@
+# 프레임워크 원본 전용 자산. build-framework-template와 해당 회귀 시험이 같은 목록을 쓴다.
+docs/generated/project-preflight.md
+docs/generated/project-preflight.json
+.ai-dev-standard/session-preflight.json
+.opencode/node_modules
+.opencode/package.json
+.opencode/package-lock.json
+scripts/test-framework.sh
+scripts/test-framework-assets.sh
+scripts/test-framework-template.sh
+scripts/test-project-preflight.sh
+scripts/test-review.sh
+scripts/test-validate-plan.sh
+scripts/test-plan-templates.sh
+scripts/test-e2e-gate.sh
+scripts/test-verification-evidence.sh

@@ -3,6 +3,10 @@
     "allow": [
       "Bash(scripts/verify.sh*)",
       "Bash(scripts/verify-plan.sh*)",
+      "Bash(scripts/record-verification-evidence.sh*)",
+      "Bash(node scripts/lib/cli.js record-verification-evidence*)",
+      "Bash(scripts/record-e2e-evidence.sh*)",
+      "Bash(node scripts/lib/cli.js record-e2e-evidence*)",
       "Bash(scripts/new-product-spec.sh*)",
       "Bash(scripts/new-exec-plan.sh*)",
       "Bash(scripts/new-improvement-candidate.sh*)",
@@ -11,6 +15,7 @@
       "Bash(scripts/lint.sh*)",
       "Bash(scripts/test.sh*)",
       "Bash(scripts/review.sh*)",
+      "Bash(node scripts/lib/cli.js work-status)",
       "Read(**)",
       "Grep(**)",
       "Glob(**)"

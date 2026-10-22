@@ -21,15 +21,26 @@
 - 판정과 근거를 Exec Plan에 기록한다.
 - `READY_FOR_REVIEW` 선언 전 `scripts/converge-plan.sh <계획>`을 실행해
   AC·검증·리뷰 증거의 수렴을 확인한다.
+- 수렴이 PASS면 사용자에게 **검토 결정 필요**로 보고한다. 사용자 보고 형식은
+  `standard-human-decision` 계약을 따르며, 변경 사항 검토 결과·자동 검증·명세 충족·남은 위험과
+  완료 처리·개선 요청·보류 선택을 함께 제시한다.
+- `DONE` 또는 완료 표현은 사람의 명시적 승인 뒤 `complete-exec-plan`이 계획을
+  `completed/`로 이동한 후에만 사용한다.
+- 검증 계약 버전 2 Plan의 검토 요약에는 E2E 판정·실행 결과 또는 미검증 사유를 별도 표시한다.
+  E2E가 필요하지만 증거가 없으면 PASS 리뷰·완료 처리를 제안하지 않는다.
 
 ## Outputs
 
 - Standards/Spec Review 결과
 - `scripts/converge-plan.sh <계획>`의 수렴 결과
+- 사람 결정을 위한 검토 요청 보고
 
 ## Exit conditions / next stage
 
-- 두 리뷰와 수렴이 PASS면 `READY_FOR_REVIEW`까지 가능하다.
-- FAIL이면 통과시키지 않고 Verify 또는 Implement로 되돌린다.
-  WARN은 사유와 함께 사람 판단을 기다린다(자동으로 다음 단계로 진행하지 않는다).
-  `done`은 사람 승인 전용이다.
+- `CRITICAL`이 있으면 수정 전 `READY_FOR_REVIEW` 및 완료 승인을 제안하지 않고
+  Implement 또는 Verify로 되돌린다.
+- `WARNING`이 있으면 위험과 근거를 제시하고, 사람의 완료 승인·개선 요청·보류 판단을 기다린다.
+- `SUGGESTION`만 있거나 리뷰가 PASS이고 수렴이 PASS면 `READY_FOR_REVIEW`로 보고하고,
+  사람에게 완료 승인·개선 요청·보류를 제시한다.
+- 완료 승인을 받으면 `complete-exec-plan`으로 계획을 `completed/`로 이동할 수 있다.
+  `done`은 이 처리 후에만 사용한다.

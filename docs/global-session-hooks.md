@@ -23,8 +23,9 @@ scripts/install-global-session-hooks.sh
 
 ## 동작 범위
 
-- 프레임워크가 적용된 프로젝트: `scripts/session-preflight.sh --start`를 한 번 실행하고 로컬
-  세션 상태를 갱신한다.
+- 프레임워크가 적용된 프로젝트: `scripts/session-preflight.sh --start`를 한 번 실행해 로컬
+  세션 상태를 갱신한 뒤, 대상 프로젝트의 `node scripts/lib/cli.js work-status`를 한 번 실행해
+  작업 상태를 복원한다.
 - 아직 적용되지 않은 프로젝트: 파일을 만들거나 고치지 않는다. 에이전트에게 적용 분석을
   제안하라는 정보만 전달한다.
 

@@ -6,6 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ROOT, fail, sectionRange, sectionInside } = require("../util");
+const { parseDecision, decisionProblems } = require("../e2e");
 
 function run(args) {
   // bash: 인자 1개 + 파일 존재 + docs/exec-plans/active/ 경로 검사
@@ -78,6 +79,24 @@ function run(args) {
   for (const ac of specAcs) {
     if (!verifySection.includes(ac)) {
       fail(`검증 계획에 명세 AC가 없습니다: ${ac}`, 2);
+    }
+  }
+
+  const contractVersion = plan.match(/^- 검증 계약 버전: (.+)$/m);
+  if (contractVersion && contractVersion[1].trim() !== "2") {
+    fail("지원하지 않는 검증 계약 버전입니다.", 2);
+  }
+  if (contractVersion) {
+    const decision = parseDecision(plan);
+    const problems = decisionProblems(decision, specAcs);
+    if (problems.length > 0) fail(problems[0], 2);
+    if (decision.needed === "필요") {
+      const e2eAcs = Array.from(new Set(decision.acs.match(/AC-[0-9]+/g) || []));
+      for (const ac of e2eAcs) {
+        if (!verifySection.includes(ac)) {
+          fail(`E2E 판정의 대상 AC가 검증 계획에 없습니다: ${ac}`, 2);
+        }
+      }
     }
   }
 

@@ -28,6 +28,11 @@ fi
 if AI_DEV_STANDARD_FRAMEWORK_ROOT="$FRAMEWORK_ROOT" "$RUNNER" --project-dir "$PROJECT_DIR" --start >/dev/null 2>&1; then
   status="$(AI_DEV_STANDARD_FRAMEWORK_ROOT="$FRAMEWORK_ROOT" "$RUNNER" --project-dir "$PROJECT_DIR" --status 2>/dev/null || true)"
   printf '%s\n' "AI Dev Standard Session Preflight completed: $status"
+  if [ -f "$PROJECT_DIR/scripts/lib/cli.js" ]; then
+    node "$PROJECT_DIR/scripts/lib/cli.js" work-status
+  else
+    printf '%s\n' "AI Dev Standard work-status is BLOCKED. scripts/lib/cli.js가 없으므로 작업 기록을 복원할 수 없습니다."
+  fi
 else
   printf '%s\n' "AI Dev Standard Session Preflight is BLOCKED. Read .ai-dev-standard/session-preflight.json and resolve the reported issue before Plan or Coding."
 fi

@@ -71,4 +71,37 @@ for ac in $spec_acs; do
   fi
 done
 
+CONTRACT_VERSION="$(sed -n 's/^- 검증 계약 버전: //p' "$PLAN_FILE" | head -n 1)"
+if [ -n "$CONTRACT_VERSION" ] && [ "$CONTRACT_VERSION" != "2" ]; then
+  echo "지원하지 않는 검증 계약 버전입니다." >&2
+  exit 2
+fi
+if [ "$CONTRACT_VERSION" = "2" ]; then
+  E2E_SECTION="$(awk '/^## E2E 판정$/{inside=1; next} /^## /{inside=0} inside {print}' "$PLAN_FILE")"
+  e2e_value() { printf '%s\n' "$E2E_SECTION" | sed -n "s/^- $1: //p" | head -n 1; }
+  E2E_NEEDED="$(e2e_value '필요 여부')"
+  E2E_METHOD="$(e2e_value '방식')"
+  E2E_REASON="$(e2e_value '판정 근거')"
+  E2E_ACS="$(e2e_value '대상 AC')"
+  E2E_PROCEDURE="$(e2e_value '자동 실행 명령 또는 수동 UAT 시나리오')"
+  E2E_PREREQUISITES="$(e2e_value '사전 조건')"
+  case "$E2E_NEEDED" in 필요|불필요) ;; *) echo "E2E 판정의 '필요 여부'는 필요 또는 불필요여야 합니다." >&2; exit 2;; esac
+  case "$E2E_METHOD" in '자동 Browser E2E'|'수동 Browser UAT'|'API/System E2E'|'CLI E2E'|'해당 없음') ;; *) echo "E2E 판정의 '방식' 값이 허용 목록에 없습니다." >&2; exit 2;; esac
+  [ -n "$E2E_REASON" ] && [ "$E2E_REASON" != "해당 없음" ] || { echo "E2E 판정의 '판정 근거'가 필요합니다." >&2; exit 2; }
+  [ -n "$E2E_PROCEDURE" ] || { echo "E2E 판정의 자동 실행 명령 또는 수동 UAT 시나리오가 필요합니다." >&2; exit 2; }
+  [ -n "$E2E_PREREQUISITES" ] || { echo "E2E 판정의 '사전 조건'이 필요합니다." >&2; exit 2; }
+  if [ "$E2E_NEEDED" = "불필요" ]; then
+    [ "$E2E_METHOD" = "해당 없음" ] || { echo "E2E 불필요 Plan의 방식은 '해당 없음'이어야 합니다." >&2; exit 2; }
+    [ "$E2E_ACS" = "해당 없음" ] || { echo "E2E 불필요 Plan의 대상 AC는 '해당 없음'이어야 합니다." >&2; exit 2; }
+  else
+    [ "$E2E_METHOD" != "해당 없음" ] || { echo "E2E 필요 Plan에는 실제 검증 방식을 지정해야 합니다." >&2; exit 2; }
+    E2E_AC_LIST="$(printf '%s\n' "$E2E_ACS" | grep -oE 'AC-[0-9]+' | sort -u || true)"
+    [ -n "$E2E_AC_LIST" ] || { echo "E2E 필요 Plan에는 하나 이상의 대상 AC가 필요합니다." >&2; exit 2; }
+    for e2e_ac in $E2E_AC_LIST; do
+      printf '%s\n' "$spec_acs" | grep -Fxq "$e2e_ac" || { echo "E2E 판정의 대상 AC가 제품 명세에 없습니다." >&2; exit 2; }
+      awk '/^## 검증 계획$/{inside=1; next} /^## /{inside=0} inside {print}' "$PLAN_FILE" | grep -Fq "$e2e_ac" || { echo "E2E 판정의 대상 AC가 검증 계획에 없습니다: $e2e_ac" >&2; exit 2; }
+    done
+  fi
+fi
+
 echo "PLAN VALID: $PLAN_FILE"

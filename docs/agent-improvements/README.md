@@ -14,6 +14,7 @@ completed exec plan → candidates/ → 사람 결정 → approved/ 또는 rejec
 - 후보 파일에는 문제, 근거, 제안, 영향 범위, 위험, 출처 실행 계획을 모두 적는다.
 - 후보 작성은 공통 규칙·스킬·스크립트의 자동 수정 권한을 주지 않는다.
 - 사람만 `scripts/decide-improvement.sh`로 `approved` 또는 `rejected` 결정을 내린다.
+- 승인·기각·보류의 제시와 기록은 `docs/skill-contracts/standard-human-decision.md`를 따른다.
 - 승인된 후보도 별도 제품 명세와 실행 계획을 거쳐 구현한다.
 
 `AGENTS.md`, `ARCHITECTURE.md`, 완료 기준, 보안 규칙, 검증 스크립트는 후보 상태에서

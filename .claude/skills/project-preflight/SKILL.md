@@ -9,7 +9,19 @@ description: 기능·수정·버그 작업 전에 공통 프로젝트 준비 상
 
 ```bash
 scripts/session-preflight.sh --start
+node scripts/lib/cli.js work-status
 ```
+
+`work-status`는 사용자의 수동 요청 없이 매 새 세션에 실행하고, 아래 항목을 정확한 건수 또는
+`없음`으로 사용자에게 보고한다. `승인 대기`는 `READY_FOR_REVIEW` 상태의 계획만 뜻하며,
+다른 진행 중 계획을 승인 대기로 바꾸어 말하지 않는다.
+
+- 활성 작업
+- 전환 누락
+- 승인 대기
+- 진행 중
+- 최근 완료
+- Git 변경
 
 작업 요청에서는 `scripts/session-preflight.sh --status`로 캐시를 확인한다.
 

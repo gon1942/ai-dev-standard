@@ -8,6 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { ROOT } = require("../util");
+const { loadE2EConfig } = require("../e2e");
 
 function toolExists(tool) {
   const probe = process.platform === "win32" ? spawnSync("where", [tool]) : spawnSync("which", [tool]);
@@ -16,6 +17,38 @@ function toolExists(tool) {
 
 function run(args) {
   const scope = args[0] || "all";
+  if (!["unit", "integration", "regression", "e2e", "all"].includes(scope)) {
+    process.stderr.write("사용법: test [unit|integration|regression|e2e|all]\n");
+    process.exit(2);
+  }
+
+  // E2E는 프로젝트가 명시한 command + args 배열만 실행한다. Playwright를 포함한
+  // 특정 도구를 탐지·설치하지 않으므로 Node·Python·CLI 프로젝트 모두 같은 경계를 쓴다.
+  if (scope === "e2e") {
+    const config = loadE2EConfig();
+    if (config.status === "missing") {
+      process.stdout.write("=== TEST(e2e): SKIP (E2E 설정 없음) ===\n");
+      process.exit(3);
+    }
+    if (config.status === "invalid") {
+      process.stderr.write(`=== TEST(e2e): FAIL (E2E 설정 오류: ${config.message}) ===\n`);
+      process.exit(1);
+    }
+
+    process.stdout.write(`--- E2E (e2e): ${config.command} ${config.args.join(" ")} ---\n`);
+    const result = spawnSync(config.command, config.args, { stdio: "inherit", cwd: ROOT, shell: false });
+    if (result.error || result.status === null) {
+      process.stderr.write("=== TEST(e2e): FAIL (E2E 명령을 실행할 수 없음) ===\n");
+      process.exit(1);
+    }
+    if (result.status === 0) {
+      process.stdout.write("=== TEST(e2e): PASS ===\n");
+      process.exit(0);
+    }
+    process.stderr.write(`=== TEST(e2e): FAIL (종료 코드 ${result.status}) ===\n`);
+    process.exit(result.status);
+  }
+
   let failed = false;
   let ranAny = false;
 

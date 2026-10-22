@@ -6,19 +6,28 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { ROOT, fail, sectionInside } = require("../util");
+const {
+  parseDecision,
+  isManualUat,
+  manualUatEvidenceIsPass,
+  automaticE2eEvidenceIsPass,
+} = require("../e2e");
 
 // CLI는 모듈 실제 위치 기준으로 찾는다 (AI_DEV_STANDARD_ROOT 오버라이드와 무관).
 const CLI = path.resolve(__dirname, "..", "cli.js");
 
 function run(args) {
-  if (args.length !== 1 || !fs.existsSync(path.resolve(ROOT, args[0]))) {
+  if (args.length !== 1) {
     fail("사용법: scripts/converge-plan.sh <docs/exec-plans/active/실행계획.md>", 2);
   }
   const planFile = args[0];
+  const planAbs = path.resolve(ROOT, planFile);
+  if (!fs.existsSync(planAbs)) {
+    fail("사용법: scripts/converge-plan.sh <docs/exec-plans/active/실행계획.md>", 2);
+  }
   if (!planFile.startsWith("docs/exec-plans/active/")) {
     fail(`활성 실행 계획 파일을 지정하세요: ${planFile}`, 2);
   }
-  const planAbs = path.resolve(ROOT, planFile);
 
   const envFile = path.join(ROOT, ".ai-dev-standard.env");
   const envText = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
@@ -46,6 +55,22 @@ function run(args) {
   }
   if (acRows.some((row) => !/^\| AC-[^|]+ \| PASS \| .+ \|$/.test(row))) {
     fail("CONVERGENCE: BLOCKED — 모든 AC는 PASS와 비어 있지 않은 증거를 가져야 합니다.", 1);
+  }
+
+  const e2e = parseDecision(plan);
+  if (e2e.unsupported) {
+    fail("CONVERGENCE: BLOCKED — 지원하지 않는 검증 계약 버전입니다.", 1);
+  }
+  if (!e2e.legacy && e2e.needed === "필요") {
+    if (isManualUat(e2e)) {
+      if (!manualUatEvidenceIsPass(plan)) {
+        fail("CONVERGENCE: BLOCKED — 수동 UAT E2E 증거가 PASS가 아닙니다.", 1);
+      }
+    } else {
+      if (!automaticE2eEvidenceIsPass(plan)) {
+        fail("CONVERGENCE: BLOCKED — 자동 E2E 증거가 PASS가 아닙니다.", 1);
+      }
+    }
   }
 
   // bash: scripts/verify-plan.sh — set -e로 실패 전파. node 엔진 호출로 동치.
