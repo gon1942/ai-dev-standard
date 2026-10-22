@@ -143,16 +143,23 @@ async function run(args) {
   // --install: 에이전트가 채팅으로 승인받은 후 즉시 설치 (y/N 생략)
   if (installMode && actions.length > 0) {
     write("");
+    let installFailed = false;
     for (const action of actions) {
       try {
         const result = action.install();
         write(`  ✓ ${action.label}: ${result}`);
       } catch (error) {
         write(`  ✗ ${action.label}: ${error.message}`);
+        installFailed = true;
       }
     }
     write("");
-    write("설치 완료. OpenCode는 재시작 후 플러그인이 활성화됩니다.");
+    if (installFailed) {
+      write("일부 설치가 실패했습니다. 실패 항목을 확인한 뒤 재시도하세요.");
+      process.exitCode = 1;
+    } else {
+      write("설치 완료. OpenCode는 재시작 후 플러그인이 활성화됩니다.");
+    }
     return;
   }
 
@@ -168,16 +175,23 @@ async function run(args) {
   }
 
   write("");
+  let installFailed = false;
   for (const action of actions) {
     try {
       const result = action.install();
       write(`  ✓ ${action.label}: ${result}`);
     } catch (error) {
       write(`  ✗ ${action.label}: ${error.message}`);
+      installFailed = true;
     }
   }
   write("");
-  write("설치 완료. OpenCode는 재시작 후 플러그인이 활성화됩니다.");
+  if (installFailed) {
+    write("일부 설치가 실패했습니다. 실패 항목을 확인한 뒤 재시도하세요.");
+    process.exitCode = 1;
+  } else {
+    write("설치 완료. OpenCode는 재시작 후 플러그인이 활성화됩니다.");
+  }
   write("참고: 설치하지 않아도 프레임워크의 모든 게이트·검증은 완전히 작동합니다.");
 }
 
