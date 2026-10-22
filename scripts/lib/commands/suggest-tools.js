@@ -74,6 +74,7 @@ function installSkill(toolDir) {
 
 async function run(args) {
   const checkOnly = args.includes("--check");
+  const installMode = args.includes("--install");
   const out = [];
   const write = (line) => { out.push(line); process.stdout.write(line + "\n"); };
 
@@ -136,6 +137,22 @@ async function run(args) {
     for (const a of actions) write(`  - ${a.label}`);
     write("");
     write("설치하려면 대화형으로 실행하세요 (에이전트 세션에서 자동 진행).");
+    return;
+  }
+
+  // --install: 에이전트가 채팅으로 승인받은 후 즉시 설치 (y/N 생략)
+  if (installMode && actions.length > 0) {
+    write("");
+    for (const action of actions) {
+      try {
+        const result = action.install();
+        write(`  ✓ ${action.label}: ${result}`);
+      } catch (error) {
+        write(`  ✗ ${action.label}: ${error.message}`);
+      }
+    }
+    write("");
+    write("설치 완료. OpenCode는 재시작 후 플러그인이 활성화됩니다.");
     return;
   }
 
