@@ -386,6 +386,49 @@ taskgraph_error_case "태스크그래프해당없음의존" '| T1 | 해당 없�
 | T2 | T1 | b.js | 구현 전 |'
 taskgraph_error_case "태스크그래프다중오류" '| A1 | — | a.js | 완료 |'
 
+# CRG 탐색 기록 게이트 (선택 섹션 — 사용 시에만 형식 검사)
+crg_record_case() {
+  local label="$1" record="$2"
+  local bd="$TMP/${label}-bash" nd="$TMP/${label}-node"
+  setup_case "$bd" validate-plan.sh
+  write_gate_fixtures "$bd" template false simple
+  write_gate_fixtures "$nd" template false simple
+  local d
+  for d in "$bd" "$nd"; do
+    printf '\n%s\n' "$record" >> "$d/docs/exec-plans/active/plan.md"
+  done
+  set +e
+  (cd "$bd" && bash scripts/validate-plan.sh docs/exec-plans/active/plan.md) > "$TMP/${label}-bash.out" 2>&1; local bc=$?
+  node_cli "$nd" validate-plan docs/exec-plans/active/plan.md > "$TMP/${label}-node.out" 2>&1; local nc=$?
+  set -e
+  compare_outputs "게이트-${label}" "$bc" "$TMP/${label}-bash.out" "$nc" "$TMP/${label}-node.out"
+}
+CRG_VALID_RECORD='## CRG 탐색 기록
+
+- 사용 단계: Plan, Verify
+- graph 상태: build
+- 실행 명령: code-review-graph build
+- 결과 반영: caller 3건 영향 파일 반영
+- 원본 소스 교차 확인: scripts/a.js'
+CRG_BAD_STAGE_RECORD='## CRG 탐색 기록
+
+- 사용 단계: Implement
+- graph 상태: build
+- 실행 명령: code-review-graph build
+- 결과 반영: caller 확인
+- 원본 소스 교차 확인: scripts/a.js'
+crg_record_case "CRG기록정상" "$CRG_VALID_RECORD"
+crg_record_case "CRG기록단계오류" "$CRG_BAD_STAGE_RECORD"
+# 후행 구분자 단계 목록("Plan, Verify,") — 양측 모두 유효로 취급 (동치 회귀 고정)
+CRG_TRAILING_RECORD='## CRG 탐색 기록
+
+- 사용 단계: Plan, Verify,
+- graph 상태: update
+- 실행 명령: code-review-graph update
+- 결과 반영: 테스트 후보 2건 회귀 대상 추가
+- 원본 소스 교차 확인: scripts/a.js'
+crg_record_case "CRG기록후행구분자" "$CRG_TRAILING_RECORD"
+
 # g5: verify — template 모드, 설정 없음 → TEMPLATE PASS exit 0
 {
   BD="$TMP/g5-bash"; ND="$TMP/g5-node"

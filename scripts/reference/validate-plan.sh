@@ -178,6 +178,61 @@ if [ -n "$TASK_GRAPH_ERROR" ]; then
   exit 2
 fi
 
+# CRG 탐색 기록 (선택 섹션) — 사용 시에만 형식을 검사한다.
+# 오류 메시지는 Node 구현(scripts/lib/commands/validate-plan.js)과 바이트 동치여야 한다.
+if grep -q '^## CRG 탐색 기록' "$PLAN_FILE"; then
+  CRG_ERROR="$(awk '
+    function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    function fieldval(sec, name,   line, n, raw) {
+      n = split(sec, lines, "\n")
+      for (i = 1; i <= n; i++) {
+        if (lines[i] ~ "^- " name ": ") {
+          split(lines[i], raw, "- " name ": ")
+          return trim(raw[2])
+        }
+        if (lines[i] ~ "^- " name ":$") return ""
+      }
+      return "__MISSING__"
+    }
+    /^## CRG 탐색 기록/{inside=1; next} /^## /{inside=0}
+    inside { section = section $0 "\n" }
+    END {
+      if (section == "") exit 0
+      # 1) 사용 단계
+      v = fieldval(section, "사용 단계")
+      ok = (v != "__MISSING__" && v != "")
+      if (ok) {
+        nt = split(v, toks, /[\t ,]+/)
+        for (k = 1; k <= nt; k++) {
+          if (toks[k] == "") continue
+          if (toks[k] != "Plan" && toks[k] != "Verify" && toks[k] != "Review") { ok = 0; break }
+        }
+      }
+      if (!ok) {
+        print "CRG 탐색 기록의 '\''사용 단계'\''는 Plan, Verify, Review 중 하나여야 합니다."
+        exit 0
+      }
+      # 2) graph 상태
+      v = fieldval(section, "graph 상태")
+      if (v != "기존 graph" && v != "build" && v != "update") {
+        print "CRG 탐색 기록의 '\''graph 상태'\''는 기존 graph, build, update 중 하나여야 합니다."
+        exit 0
+      }
+      # 3) 텍스트 필수 필드
+      v1 = fieldval(section, "실행 명령")
+      if (v1 == "__MISSING__" || v1 == "") { print "CRG 탐색 기록의 필수 항목이 없거나 비어 있습니다: 실행 명령"; exit 0 }
+      v2 = fieldval(section, "결과 반영")
+      if (v2 == "__MISSING__" || v2 == "") { print "CRG 탐색 기록의 필수 항목이 없거나 비어 있습니다: 결과 반영"; exit 0 }
+      v3 = fieldval(section, "원본 소스 교차 확인")
+      if (v3 == "__MISSING__" || v3 == "") { print "CRG 탐색 기록의 필수 항목이 없거나 비어 있습니다: 원본 소스 교차 확인"; exit 0 }
+    }
+  ' "$PLAN_FILE")"
+  if [ -n "$CRG_ERROR" ]; then
+    echo "$CRG_ERROR" >&2
+    exit 2
+  fi
+fi
+
 spec_acs="$(sed -n '/^## 완료 조건/,/^## /p' "$SPEC_FILE" | grep -oE 'AC-[0-9]+' | sort -u || true)"
 if [ -z "$spec_acs" ]; then
   echo "제품 명세에 Acceptance Criteria가 없습니다." >&2

@@ -39,6 +39,6 @@ node scripts/lib/cli.js suggest-tools --install
 세션 상태
 - Preflight: PASS/WARNING/BLOCK
 - 활성 작업: N개
-- 필수 구성 도구: 모두 설치됨 (또는 설치 진행)
+- 필수 구성 도구: 설치된 도구 이름을 쉼표로 모두 나열 (또는 설치 진행 항목)
 - Git 상태
 ```

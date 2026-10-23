@@ -34,7 +34,8 @@ Claude Code는 먼저 `AGENTS.md`를 읽고, 그 다음 필요한 도구별 skil
 8. 새 세션에서는 Session Preflight 뒤 `node scripts/lib/cli.js work-status`를 실행하고,
    활성 작업·전환 누락·승인 대기·진행 중·최근 완료·Git 변경을 사용자에게 정확한 건수 또는
    `없음`으로 보고한다. 사용자가 명령을 직접 실행하거나 요청할 필요는 없다. `승인 대기`는
-   `READY_FOR_REVIEW` 상태의 계획만 뜻한다. 작업 요청에서는 Preflight 캐시 상태만 확인한다.
+   `READY_FOR_REVIEW` 상태의 계획만 뜻한다. 필수 구성 도구는 "모두 설치됨"으로 요약하지 않고
+   설치된 도구 이름을 모두 나열한다. 작업 요청에서는 Preflight 캐시 상태만 확인한다.
    BLOCK/무효 상태면 상태는 보고하되 Plan·Implement를 진행하지 않는다.
 9. **필수 구성 도구는 사용자에게 묻지 않고 즉시 설치한다.**
    `npx init`로 프로젝트를 만들 때 도구 설치가 이미 승인된 것으로 간주한다.

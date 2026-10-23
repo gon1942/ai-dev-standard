@@ -146,7 +146,8 @@ function run(args) {
   for (const t of tools) {
     if (t.optional) {
       // package.json 없는 템플릿 상태 — 기술스택 감지 후 설치 (실패 아님)
-      write(`- ${t.name}: ${t.installed ? "설치됨" : "기술스택 감지 후 설치 (package.json 없음)"}`);
+      const pending = t.name === "CRG graph" ? "미생성 — 분석 시점 자동 생성 (설계 동작)" : "기술스택 감지 후 설치 (package.json 없음)";
+      write(`- ${t.name}: ${t.installed ? "설치됨" : pending}`);
     } else {
       write(`- ${t.name}: ${t.installed ? "설치됨" : "미설치 — 설치 필요"}`);
     }
@@ -213,6 +214,17 @@ function getToolStatus() {
 
   // jscpd — 항상 사용 가능
   result.push({ name: "중복 검사 (jscpd)", installed: true, hint: "" });
+
+  const stateRoot = path2.join(process.env.XDG_STATE_HOME || path2.join(os.homedir(), ".local", "state"), "ai-dev-standard");
+  const pipx = spawnSync("pipx", ["--version"], { stdio: "ignore" }).status === 0 ||
+    spawnSync(path2.join(stateRoot, "pipx-bootstrap", "bin", "pipx"), ["--version"], { stdio: "ignore" }).status === 0;
+  const managedCrg = spawnSync(path2.join(stateRoot, "bin", "code-review-graph"), ["--version"], { encoding: "utf8" });
+  const crg = managedCrg.status === 0 && /2\.3\.9\b/.test(managedCrg.stdout || "");
+  result.push({ name: "pipx", installed: pipx, hint: "" });
+  result.push({ name: "Code Review Graph", installed: crg, hint: "" });
+  const graphDir = path2.join(ROOT, ".code-review-graph");
+  const legacyDb = path2.join(ROOT, ".code-review-graph.db");
+  result.push({ name: "CRG graph", installed: fs2.existsSync(graphDir) || fs2.existsSync(legacyDb), hint: "", optional: true });
 
   return result;
 }

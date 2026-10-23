@@ -15,6 +15,32 @@ const {
   loadE2EConfig,
 } = require("../e2e");
 
+// CRG 탐색 기록 검증 — 선택 섹션. 섹션이 없으면 하위 호환으로 통과한다.
+function crgRecordProblem(plan) {
+  if (!/^## CRG 탐색 기록/m.test(plan)) return null;
+  const section = sectionInside(plan, /^## CRG 탐색 기록/).join("\n");
+  const field = (name) => {
+    const m = section.match(new RegExp(`^- ${name}: (.*)$`, "m"));
+    return m ? m[1].trim() : null;
+  };
+  const stages = field("사용 단계");
+  if (stages === null || stages === "" ||
+      stages.split(/[\s,]+/).filter(Boolean).some((s) => !["Plan", "Verify", "Review"].includes(s))) {
+    return "CRG 탐색 기록의 '사용 단계'는 Plan, Verify, Review 중 하나여야 합니다.";
+  }
+  const graph = field("graph 상태");
+  if (graph === null || !["기존 graph", "build", "update"].includes(graph)) {
+    return "CRG 탐색 기록의 'graph 상태'는 기존 graph, build, update 중 하나여야 합니다.";
+  }
+  for (const name of ["실행 명령", "결과 반영", "원본 소스 교차 확인"]) {
+    const value = field(name);
+    if (value === null || value === "") {
+      return `CRG 탐색 기록의 필수 항목이 없거나 비어 있습니다: ${name}`;
+    }
+  }
+  return null;
+}
+
 // Task Graph 검증 — 선택 섹션. 오류 메시지는 bash 참조 구현과 바이트 동치여야 한다.
 function taskGraphProblems(plan) {
   const section = sectionInside(plan, /^## Task Graph$/).join("\n");
@@ -185,6 +211,12 @@ function run(args) {
   {
     const problems = taskGraphProblems(plan);
     if (problems.length > 0) fail(problems[0], 2);
+  }
+
+  // CRG 탐색 기록 (선택 섹션) — 사용 시에만 형식을 검사한다. 오류 메시지는 bash 참조와 바이트 동치.
+  {
+    const problem = crgRecordProblem(plan);
+    if (problem) fail(problem, 2);
   }
 
   // bash: sed -n '/^## 완료 조건/,/^## /p' | grep -oE 'AC-[0-9]+' | sort -u

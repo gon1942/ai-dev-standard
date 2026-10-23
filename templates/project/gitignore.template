@@ -5,6 +5,8 @@ build/
 __pycache__/
 *.pyc
 .venv/
+.code-review-graph/
+.code-review-graph.db
 *.tgz
 
 # 환경/시크릿

@@ -295,3 +295,102 @@ expect_tg_block '## Task Graph
 | A1 | — | a.js | 구현 전 |' "Task ID 형식"
 
 echo 'PASS: task graph gate 9 branches'
+
+# ── CRG 탐색 기록 게이트 (선택 섹션 — 사용 시에만 형식 검사) ──
+CRG_PLAN="docs/exec-plans/active/${TOKEN}-crg.md"
+cleanup() { rm -f "$SPEC" "$PLAN" "$BUG_SPEC" "$BUG_PLAN" "$TG_PLAN" "$CRG_PLAN"; }
+
+write_crg_plan() {
+  cat > "$CRG_PLAN" <<EOF
+# Exec Plan: crg record fixture
+
+- 상태: active
+- 승인: approved
+- 제품 명세: $SPEC
+
+## 구현 계획
+
+- 목적: crg record gate
+
+## 구현 작업
+
+| 순서 | 변경 대상 | 변경 내용·인터페이스 | 테스트·검증 명령 | 기대 증거 | AC |
+|---:|---|---|---|---|---|
+| 1 | a | b | c | d | AC-01 |
+| 2 | a | b | c | d | AC-02 |
+
+$1
+
+## 검증 계획
+
+| AC | 검증 방법 | 기대 증거 |
+|---|---|---|
+| AC-01 | shell test | exit 0 |
+| AC-02 | shell test | exit 0 |
+
+## 회귀 검증 대상
+
+- validate-plan
+EOF
+}
+
+CRG_VALID='## CRG 탐색 기록
+
+- 사용 단계: Plan
+- graph 상태: build
+- 실행 명령: code-review-graph build
+- 결과 반영: caller 3건 영향 파일 반영
+- 원본 소스 교차 확인: scripts/a.js, scripts/b.js'
+
+# 유효 기록 → 통과
+write_crg_plan "$CRG_VALID"
+scripts/validate-plan.sh "$CRG_PLAN" >/dev/null
+
+# 섹션 없음(하위 호환) → 통과
+write_crg_plan ""
+scripts/validate-plan.sh "$CRG_PLAN" >/dev/null
+
+expect_crg_block() {
+  write_crg_plan "$1"
+  if scripts/validate-plan.sh "$CRG_PLAN" >/dev/null 2>&1; then
+    echo "FAIL: CRG 기록 — $2 — 차단되지 않고 통과함" >&2
+    exit 1
+  fi
+}
+
+# 사용 단계 허용 외 값 → 차단
+expect_crg_block '## CRG 탐색 기록
+
+- 사용 단계: Implement
+- graph 상태: build
+- 실행 명령: code-review-graph build
+- 결과 반영: caller 확인
+- 원본 소스 교차 확인: scripts/a.js' "사용 단계 허용 외"
+
+# graph 상태 허용 외 값 → 차단
+expect_crg_block '## CRG 탐색 기록
+
+- 사용 단계: Plan
+- graph 상태: rebuild
+- 실행 명령: code-review-graph build
+- 결과 반영: caller 확인
+- 원본 소스 교차 확인: scripts/a.js' "graph 상태 허용 외"
+
+# 실행 명령 비어 있음 → 차단
+expect_crg_block '## CRG 탐색 기록
+
+- 사용 단계: Plan
+- graph 상태: build
+- 실행 명령:
+- 결과 반영: caller 확인
+- 원본 소스 교차 확인: scripts/a.js' "실행 명령 비어 있음"
+
+# 필수 필드 누락(결과 반영 없음) → 차단
+expect_crg_block '## CRG 탐색 기록
+
+- 사용 단계: Plan
+- graph 상태: build
+- 실행 명령: code-review-graph build
+- 원본 소스 교차 확인: scripts/a.js' "결과 반영 누락"
+
+echo 'PASS: crg record gate 6 branches'

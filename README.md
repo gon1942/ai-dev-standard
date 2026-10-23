@@ -36,6 +36,13 @@ npm 게시 전 로컬에서는 저장소 루트에서 동일하게 동작한다:
 node bin/ai-dev-standard.js init /path/to/my-project
 ```
 
+### 필수 코드 영향 분석 도구
+
+세션 시작 시 CRG(Code Review Graph)가 없으면 프레임워크 전용 bootstrap venv와 `pipx`로
+`code-review-graph 2.3.9`를 준비한다. 사용자 Python 패키지는 변경하지 않으며, graph는
+세션 시작에 만들지 않는다. 영향 범위 분석이 필요한 Plan·Verify·Review에서만 프로젝트별
+`.code-review-graph/`을 build 또는 update한다.
+
 npm 게시는 유지보수자가 수행한다 (npm에서 `@gon1942` 스코프 소유 필요):
 
 ```bash

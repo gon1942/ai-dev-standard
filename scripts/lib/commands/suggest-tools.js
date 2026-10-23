@@ -11,6 +11,29 @@ const os = require("os");
 const { spawnSync } = require("child_process");
 const { ROOT } = require("../util");
 
+function commandExists(command, args = ["--version"]) {
+  return spawnSync(command, args, { stdio: "ignore" }).status === 0;
+}
+
+const stateRoot = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state"), "ai-dev-standard");
+const bootstrapPipx = path.join(stateRoot, "pipx-bootstrap", "bin", "pipx");
+const managedBin = path.join(stateRoot, "bin");
+
+function pipxInvocation() {
+  const env = { ...process.env, PIPX_HOME: path.join(stateRoot, "pipx"), PIPX_BIN_DIR: managedBin };
+  if (commandExists("pipx")) return { command: "pipx", args: [], env };
+  if (commandExists(bootstrapPipx)) {
+    return { command: bootstrapPipx, args: [], env };
+  }
+  return null;
+}
+
+function crgCommand() {
+  const managed = path.join(managedBin, "code-review-graph");
+  const result = spawnSync(managed, ["--version"], { encoding: "utf8" });
+  return result.status === 0 && /2\.3\.9\b/.test(result.stdout || "") ? managed : null;
+}
+
 function readJsonSafe(filePath) {
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -21,6 +44,32 @@ function readJsonSafe(filePath) {
 
 // ── 도구 정의 ──
 const TOOLS = [
+  {
+    id: "pipx",
+    name: "pipx",
+    desc: "격리된 전역 Python CLI 설치 관리자",
+    check: () => Boolean(pipxInvocation()),
+    install: () => {
+      const venv = spawnSync("python3", ["-m", "venv", path.dirname(path.dirname(bootstrapPipx))], { stdio: "inherit" });
+      if (venv.status !== 0) throw new Error("pipx bootstrap venv 생성 실패");
+      const result = spawnSync(path.join(path.dirname(bootstrapPipx), "python"), ["-m", "pip", "install", "pipx"], { stdio: "inherit" });
+      if (result.status !== 0) throw new Error("bootstrap venv의 pipx 설치 실패");
+      return "프레임워크 전용 pipx bootstrap 설치 완료";
+    },
+  },
+  {
+    id: "code-review-graph",
+    name: "Code Review Graph",
+    desc: "영향 범위·테스트 후보·blast radius 탐색 (2.3.9)",
+    check: () => Boolean(crgCommand()),
+    install: () => {
+      const pipx = pipxInvocation();
+      if (!pipx) throw new Error("pipx 준비 실패");
+      const result = spawnSync(pipx.command, [...pipx.args, "install", "code-review-graph==2.3.9"], { stdio: "inherit", env: pipx.env });
+      if (result.status !== 0 || !crgCommand()) throw new Error("code-review-graph 2.3.9 설치 실패");
+      return "code-review-graph 2.3.9 설치 완료";
+    },
+  },
   {
     id: "ponytail-plugin",
     name: "Ponytail 플러그인",

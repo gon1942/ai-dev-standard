@@ -69,6 +69,14 @@ $(if [ -n "$PREAPPROVAL_ID" ]; then printf '%s\n' "- 사전 승인 묶음: ${PRE
 
 - 영향을 받는 기존 기능 또는 테스트: ...
 
+## CRG 탐색 기록 (CRG를 실제 사용한 경우만 작성)
+
+- 사용 단계: Plan | Verify | Review
+- graph 상태: 기존 graph | build | update
+- 실행 명령: \`code-review-graph ...\`
+- 결과 반영: 영향 파일·회귀 테스트 등 반영 내용
+- 원본 소스 교차 확인: 확인한 파일
+
 ## E2E 판정
 
 - 필요 여부: 불필요
