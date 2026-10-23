@@ -41,12 +41,15 @@ AI는 `READY_FOR_REVIEW`까지만 선언할 수 있다.
 
 ## 4. 제품 명세와 실행 계획 스키마
 
-새 작업은 먼저 `docs/product-specs/`에 제품 명세를 만들고, 사람이 명세를 승인한 뒤
-`docs/exec-plans/active/`에 실행 계획을 만든다.
+새 작업은 `docs/product-specs/`에 제품 명세 초안을 만들고, 이어서
+`docs/exec-plans/active/`에 실행 계획 초안을 만든다. 두 문서를 함께 제시해 사람에게
+통합 사전 승인을 한 번 요청한다.
 
 제품 명세는 `scripts/new-product-spec.sh <작업명> <사용자 요청 원문>`으로, 실행 계획은
-`scripts/new-exec-plan.sh <제품명세파일>`로 생성한다. 실행 계획은 사람 승인 전 `승인: pending`이며,
-Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-plan.sh <실행계획>`을 통과해야 한다.
+`scripts/new-exec-plan.sh <제품명세파일>`로 생성한다. draft 명세에서 생성된 계획은 두 문서에
+동일한 `사전 승인 묶음` ID를 가진다. 한 번의 사람 승인 후 결정자·일자 및 승인 상태를 두 문서에
+기록하고, `scripts/validate-plan.sh <실행계획>`을 통과해야 Implement에 진입할 수 있다.
+기존 개별 승인 방식으로 이미 승인된 문서는 계속 유효하다. 리뷰 후 `done` 승인 절차는 별도다.
 
 ```markdown
 # Product Spec: <작업명>
@@ -54,6 +57,9 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
 - 상태: draft
 - 유형: 신규 기능  (신규 기능 | 수정 | 버그 | 리팩터링 | 성능)
 - 깊이: 일반  (단순 | 일반 | 설계 필요)
+- 사전 승인 묶음: PREAPPROVAL-YYYYMMDD-HHMMSS (Exec Plan 초안 생성 시 기록)
+- 승인 결정자: <통합 사전 승인 후 기록>
+- 승인 일자: <YYYY-MM-DD, 통합 사전 승인 후 기록>
 - 사용자 요청: <원문>
 
 ## 문제·목표
@@ -102,9 +108,12 @@ Implement 전 사람이 `승인: approved`로 확정하고 `scripts/validate-pla
 # Exec Plan: <작업명>
 
 - 상태: active
-- 승인: approved
+- 승인: approved  (통합 사전 승인 후 기록)
 - 검증 계약 버전: 2
 - 제품 명세: docs/product-specs/<명세파일>.md
+- 사전 승인 묶음: PREAPPROVAL-YYYYMMDD-HHMMSS (Product Spec과 동일)
+- 승인 결정자: <Product Spec과 동일>
+- 승인 일자: <Product Spec과 동일>
 
 ## 구현 계획
 

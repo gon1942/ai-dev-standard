@@ -18,13 +18,12 @@
 
 ```text
 Session Preflight
-  → Product Spec 승인
-  → Exec Plan 승인
+  → Product Spec + Exec Plan 통합 사전 승인 (1회)
   → Implement
   → Verify
   → Review
   → READY_FOR_REVIEW
-  → 사람 승인·머지
+  → 리뷰 후 사람 완료 승인·머지 (별도 1회)
 ```
 
 자세한 규칙은 `AGENTS.md`와 `docs/development-workflow.md`를 따른다.

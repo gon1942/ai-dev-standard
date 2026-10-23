@@ -17,7 +17,7 @@ PASS_COUNT=0
 FAIL_COUNT=0
 
 normalize() {
-  sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}/TIMESTAMP/g; s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}/DATETIME/g; s#\.npm/_logs/\S+#NPMLOG#g'
+  sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}/TIMESTAMP/g; s/PREAPPROVAL-[0-9]{8}-[0-9]{6}/PREAPPROVAL-TIMESTAMP/g; s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/DATETIME/g; s/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}/DATETIME/g; s#\.npm/_logs/\S+#NPMLOG#g'
 }
 
 compare_outputs() {
@@ -38,25 +38,37 @@ compare_outputs() {
 
 compare_trees() {
   local label="$1" bash_root="$2" node_root="$3"
-  local bash_list node_list bash_real
-  bash_real="$(cd "$bash_root" && find . -type f -not -path './scripts/*' | sort)"
-  bash_list="$(printf '%s\n' "$bash_real" | normalize)"
-  node_list="$(cd "$node_root" && find . -type f -not -path './scripts/*' | sort | normalize)"
-  if [ "$bash_list" != "$node_list" ]; then
+  # 파일명에 생성 시각이 포함되는 산출물(실행 계획 등)은 bash·Node 실행이 초 경계를
+  # 걸치면 실제 파일명이 1초 차이 날 수 있다. 정규화 키로 매핑해 비교한다.
+  local bash_map node_map
+  bash_map="$(cd "$bash_root" && find . -type f -not -path './scripts/*' | sort | \
+    while IFS= read -r f; do printf '%s\t%s\n' "$(printf '%s' "$f" | normalize)" "$f"; done)"
+  node_map="$(cd "$node_root" && find . -type f -not -path './scripts/*' | sort | \
+    while IFS= read -r f; do printf '%s\t%s\n' "$(printf '%s' "$f" | normalize)" "$f"; done)"
+  if [ "$(printf '%s\n' "$bash_map" | awk -F'\t' '{print $1}')" != \
+       "$(printf '%s\n' "$node_map" | awk -F'\t' '{print $1}')" ]; then
     echo "FAIL [$label] 생성 파일 목록 불일치:" >&2
-    diff <(printf '%s\n' "$bash_list") <(printf '%s\n' "$node_list") >&2 || true
+    diff <(printf '%s\n' "$bash_map" | awk -F'\t' '{print $1}') \
+         <(printf '%s\n' "$node_map" | awk -F'\t' '{print $1}') >&2 || true
     FAIL_COUNT=$((FAIL_COUNT + 1))
     return
   fi
-  local rel
-  while IFS= read -r rel; do
-    if ! diff -q <(normalize < "$bash_root/$rel") <(normalize < "$node_root/$rel") >/dev/null; then
-      echo "FAIL [$label] 파일 내용 불일치: $rel" >&2
-      diff <(normalize < "$bash_root/$rel") <(normalize < "$node_root/$rel") | head -5 >&2 || true
+  local key bfile nfile
+  while IFS=$'\t' read -r key bfile; do
+    [ -n "$key" ] || continue
+    nfile="$(printf '%s\n' "$node_map" | awk -F'\t' -v k="$key" '$1==k{print $2; exit}')"
+    if [ -z "$nfile" ]; then
+      echo "FAIL [$label] 대응 파일 없음: $bfile" >&2
       FAIL_COUNT=$((FAIL_COUNT + 1))
       return
     fi
-  done <<< "$bash_real"
+    if ! diff -q <(normalize < "$bash_root/$bfile") <(normalize < "$node_root/$nfile") >/dev/null; then
+      echo "FAIL [$label] 파일 내용 불일치: $bfile" >&2
+      diff <(normalize < "$bash_root/$bfile") <(normalize < "$node_root/$nfile") | head -5 >&2 || true
+      FAIL_COUNT=$((FAIL_COUNT + 1))
+      return
+    fi
+  done <<< "$bash_map"
   PASS_COUNT=$((PASS_COUNT + 1))
 }
 
@@ -102,7 +114,7 @@ node_cli() {
   compare_outputs "spec-사용법오류" "$BC" "$TMP/c2-bash.out" "$NC" "$TMP/c2-node.out"
 }
 
-# ── 케이스 3: 미승인 명세 → 계획 생성 거부 (exit 2) ──
+# ── 케이스 3: draft 명세 → 공동 승인 대기 계획 생성 ──
 {
   BD="$TMP/c3-bash"; ND="$TMP/c3-node"
   setup_case "$BD" new-exec-plan.sh; mkdir -p "$ND"
@@ -116,7 +128,8 @@ node_cli() {
   node_cli "$ND" new-exec-plan docs/product-specs/spec.md > "$TMP/c3-node.out" 2>&1
   NC=$?
   set -e
-  compare_outputs "계획-미승인거부" "$BC" "$TMP/c3-bash.out" "$NC" "$TMP/c3-node.out"
+  compare_outputs "계획-draft-공동승인대기" "$BC" "$TMP/c3-bash.out" "$NC" "$TMP/c3-node.out"
+  compare_trees "계획-draft-공동승인대기-파일" "$BD" "$ND"
 }
 
 # ── 케이스 4: 승인 명세 → 계획 생성 성공 ──
@@ -296,6 +309,82 @@ EOF
   set -e
   compare_outputs "게이트-AC누락" "$BC" "$TMP/g4-bash.out" "$NC" "$TMP/g4-node.out"
 }
+
+# g4b: validate-plan Task Graph 정상 → PLAN VALID exit 0 (선택 섹션 하위 호환)
+{
+  BD="$TMP/g4b-bash"; ND="$TMP/g4b-node"
+  setup_case "$BD" validate-plan.sh
+  write_gate_fixtures "$BD" template false simple
+  write_gate_fixtures "$ND" template false simple
+  for D in "$BD" "$ND"; do
+    cat >> "$D/docs/exec-plans/active/plan.md" <<'EOS'
+
+## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | — | scripts/a.js | 구현 전 |
+| T2 | T1 | scripts/b.js | 구현 전 |
+EOS
+  done
+  set +e
+  (cd "$BD" && bash scripts/validate-plan.sh docs/exec-plans/active/plan.md) > "$TMP/g4b-bash.out" 2>&1; BC=$?
+  node_cli "$ND" validate-plan docs/exec-plans/active/plan.md > "$TMP/g4b-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "게이트-태스크그래프정상" "$BC" "$TMP/g4b-bash.out" "$NC" "$TMP/g4b-node.out"
+}
+
+# g4c: validate-plan Task Graph 순환 참조 → exit 2 동일 메시지
+{
+  BD="$TMP/g4c-bash"; ND="$TMP/g4c-node"
+  setup_case "$BD" validate-plan.sh
+  write_gate_fixtures "$BD" template false simple
+  write_gate_fixtures "$ND" template false simple
+  for D in "$BD" "$ND"; do
+    cat >> "$D/docs/exec-plans/active/plan.md" <<'EOS'
+
+## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | T2 | scripts/a.js | 구현 전 |
+| T2 | T1 | scripts/b.js | 구현 전 |
+EOS
+  done
+  set +e
+  (cd "$BD" && bash scripts/validate-plan.sh docs/exec-plans/active/plan.md) > "$TMP/g4c-bash.out" 2>&1; BC=$?
+  node_cli "$ND" validate-plan docs/exec-plans/active/plan.md > "$TMP/g4c-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "게이트-태스크그래프순환" "$BC" "$TMP/g4c-bash.out" "$NC" "$TMP/g4c-node.out"
+}
+
+# g4d~g4g: validate-plan Task Graph 오류 분기 4종 → exit 2 동일 메시지
+taskgraph_error_case() {
+  local label="$1" row="$2"
+  local bd="$TMP/${label}-bash" nd="$TMP/${label}-node"
+  setup_case "$bd" validate-plan.sh
+  write_gate_fixtures "$bd" template false simple
+  write_gate_fixtures "$nd" template false simple
+  local d
+  for d in "$bd" "$nd"; do
+    printf '\n## Task Graph\n\n| Task | 의존 | 소유 파일 | 상태 |\n|---|---|---|---|\n%s\n' "$row" >> "$d/docs/exec-plans/active/plan.md"
+  done
+  set +e
+  (cd "$bd" && bash scripts/validate-plan.sh docs/exec-plans/active/plan.md) > "$TMP/${label}-bash.out" 2>&1; local bc=$?
+  node_cli "$nd" validate-plan docs/exec-plans/active/plan.md > "$TMP/${label}-node.out" 2>&1; local nc=$?
+  set -e
+  compare_outputs "게이트-${label}" "$bc" "$TMP/${label}-bash.out" "$nc" "$TMP/${label}-node.out"
+}
+taskgraph_error_case "태스크그래프중복" '| T1 | — | a.js | 구현 전 |
+| T1 | — | b.js | 구현 전 |'
+taskgraph_error_case "태스크그래프미정의참조" '| T1 | T9 | a.js | 구현 전 |'
+taskgraph_error_case "태스크그래프상태오류" '| T1 | — | a.js | 완료 |'
+taskgraph_error_case "태스크그래프ID형식" '| A1 | — | a.js | 구현 전 |'
+# S2 보강(1단계 리뷰): 빈 값 상태·해당 없음 의존(정상 통과)·다중 오류 우선순위
+taskgraph_error_case "태스크그래프빈값상태" '| T1 | — | a.js |  |'
+taskgraph_error_case "태스크그래프해당없음의존" '| T1 | 해당 없음 | a.js | 구현 전 |
+| T2 | T1 | b.js | 구현 전 |'
+taskgraph_error_case "태스크그래프다중오류" '| A1 | — | a.js | 완료 |'
 
 # g5: verify — template 모드, 설정 없음 → TEMPLATE PASS exit 0
 {
@@ -746,7 +835,9 @@ cp "$FW/scripts/reference/"*.sh "$FW/scripts/"
   compare_outputs "후보-생성" "$BC" "$TMP/v6-bash.out" "$NC" "$TMP/v6-node.out"
   BCAND="$(ls "$BD/docs/agent-improvements/candidates/")"
   NCAND="$(ls "$ND/docs/agent-improvements/candidates/")"
-  if [ "$BCAND" != "$NCAND" ]; then
+  # 후보 파일명에 생성 시각이 포함되므로 비교는 정규화 키로 한다 (초 경계 경쟁 방지).
+  # 이후 decide-improvement 경로에는 실제 파일명($BCAND/$NCAND)을 그대로 쓴다.
+  if [ "$(printf '%s' "$BCAND" | normalize)" != "$(printf '%s' "$NCAND" | normalize)" ]; then
     echo "FAIL [후보-파일명] 불일치: $BCAND vs $NCAND" >&2
     FAIL_COUNT=$((FAIL_COUNT + 1))
   else

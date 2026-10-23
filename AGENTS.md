@@ -29,6 +29,9 @@ work-status 출력의 **필수 구성 도구** 섹션에 미설치 도구가 있
   `done` 전환은 `docs/definition-of-done.md`의 사람 승인 및 완료 조건을 따른다.
 - 사람 승인 없이 공통 정책·보안·검증 규칙·스킬·실행 게이트를 변경하지 않는다.
 - 승인 없는 commit 또는 push를 하지 않는다. commit 승인과 push 승인은 별도로 취급한다.
+  병렬 실행(`docs/skill-contracts/standard-orchestration.md`)의 통합 브랜치·worktree 브랜치에서의
+  로컬 커밋은 해당 Exec Plan 승인에 포괄 승인된 것으로 본다. 공유 브랜치(main·develop) 병합과
+  push는 이 포괄 승인에 포함되지 않고 별도 승인을 유지한다.
 - 민감정보(키·토큰·`.env` 등)를 출력·기록·커밋하지 않는다.
 - 기존 테스트를 임의로 삭제하지 않는다. 불가피한 경우 사유를 공식 완료 기록에 남긴다.
 

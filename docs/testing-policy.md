@@ -23,13 +23,13 @@
 
 - E2E는 웹 여부만으로 결정하지 않는다. 사용자 흐름, API/DB/외부 서비스 경계, CLI의 입력→결과
   흐름과 AC를 분석해 Plan에 `필요` 또는 `불필요`로 기록한다.
-- Plan의 E2E 판정은 에이전트가 제안하고 사람이 Exec Plan 승인으로 확정한다.
+- Plan의 E2E 판정은 에이전트가 제안하고 사람이 Product Spec과 Exec Plan의 통합 사전 승인으로 확정한다.
 - 자동 E2E는 `.ai-dev-standard/e2e.json`의 `command`와 `args` 문자열 배열만 사용하며,
   `node scripts/lib/cli.js test e2e`가 셸 없이 실행한다. Playwright는 선택 사항이다.
 - 자동 Browser E2E 또는 API/System E2E가 필요하지만 해당 설정이 없으면, Plan에 `## E2E 프로필 제안`을
   작성한다. 제안은 선택 프로필(`node-api`·`playwright`·`cypress`), 대상 AC, 의존성·브라우저·CI 영향,
   구성 명령, 설치 거부·실패 대안을 모두 포함한다.
-- 에이전트는 Plan 승인 전 도구·브라우저를 설치하거나 E2E 설정을 만들지 않는다. 승인된 Plan의 선택
+- 에이전트는 통합 사전 승인 전 도구·브라우저를 설치하거나 E2E 설정을 만들지 않는다. 승인된 Plan의 선택
   프로필과 일치할 때만 `node scripts/lib/cli.js configure-e2e-profile <계획> <프로필>`로 구성한다.
   기존 유효 설정은 재사용하며 덮어쓰지 않는다. Playwright는 Chromium만 설치하며 OS 의존성 설치는 하지 않는다.
 - 설치 제안이 거부되면 수동 Browser UAT, AC 범위 조정, 미검증 보류 중 하나를 Plan에 확정한다. 필요한

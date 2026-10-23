@@ -69,41 +69,44 @@
 ② 요구사항 분석 — 필요 시 그릴링 후 완료 조건(Acceptance Criteria) 표 작성
    │
    ▼
-③ 제품 명세 생성 — scripts/new-product-spec.sh <작업명> <사용자 요청>
-   │       질문·확정 요구사항·AC 작성 후 사람 승인(상태: approved)
+③ 제품 명세 초안 생성 — scripts/new-product-spec.sh <작업명> <사용자 요청>
+   │       질문·확정 요구사항·AC 작성
    ▼
-④ 실행 계획 생성·승인 — scripts/new-exec-plan.sh <제품명세파일>
-       E2E 필요 여부·방식·근거·대상 AC를 에이전트가 제안하고 사람이 Plan 승인으로 확정
-       사람 승인(`- 승인: approved`) 뒤 `scripts/validate-plan.sh <실행계획파일>` 통과
+④ 실행 계획 초안 작성 — scripts/new-exec-plan.sh <제품명세파일>
+       E2E 필요 여부·방식·근거·대상 AC 및 구현 계획을 작성하고 두 문서를 함께 점검
+   ▼
+⑤ 통합 사전 승인 — Product Spec + Exec Plan을 함께 한 번 승인 요청
+       승인 시 두 문서에 같은 묶음 ID·결정자·일자를 기록
+       `scripts/validate-plan.sh <실행계획파일>` 통과 필요
    │
    ▼
-⑤ 구현 — standard-implement 계약 따름
+⑥ 구현 — standard-implement 계약 따름
    │       (계획 범위 내 최소 diff, 기존 동작 유지)
    ▼
-⑥ 검증 — standard-verify 계약과 `node scripts/lib/cli.js record-verification-evidence <실행계획파일>` 실행
+⑦ 검증 — standard-verify 계약과 `node scripts/lib/cli.js record-verification-evidence <실행계획파일>` 실행
         (공통 lint + typecheck + test 후, 플랜의 검증 계획·회귀 대상 확인.
          검증 방법이 UAT로 지정된 AC는 standard-uat 계약을 함께 수행)
    │       실행 시각·명령·종료 코드·소스 상태는 자동 기록한다. AC 의미 판정·리뷰·승인은
    │       자동화하지 않는다. E2E가 필요하면 `record-e2e-evidence` 또는 수동 UAT 증거를
    │       추가한다. 실패 시 수정 후 재실행 (원인 분석 없는 재시도 금지)
    ▼
-⑦ 독립 리뷰 — standard-review 계약 또는 사람 리뷰
+⑧ 독립 리뷰 — standard-review 계약 또는 사람 리뷰
    │
    ▼
-⑧ 최종 수렴 판정 — `scripts/converge-plan.sh <실행계획>`
+⑨ 최종 수렴 판정 — `scripts/converge-plan.sh <실행계획>`
        (AC PASS + 검증 증거 + 리뷰 PASS 확인, 실패 시 구현/검증으로 복귀)
    │
    ▼
-⑨ 완료 기록 작성 — 실행 계획 파일에 완료 기록·AC 판정 추가
+⑩ 완료 기록 작성 — 실행 계획 파일에 완료 기록·AC 판정 추가
    │
    ▼
-⑩ Pull Request — 실행 계획과 리뷰 결과를 함께 제출
+⑪ Pull Request — 실행 계획과 리뷰 결과를 함께 제출
    │
    ▼
-⑪ 사람 승인 → 머지 → 실행 계획을 `completed/`로 이동
+⑫ 리뷰 후 사람 완료 승인 → 머지 → 실행 계획을 `completed/`로 이동
    │
    ▼
-⑫ 선택적 회고 — 반복 문제는 `docs/agent-improvements/candidates/`에 후보로 기록
+⑬ 선택적 회고 — 반복 문제는 `docs/agent-improvements/candidates/`에 후보로 기록
 ```
 
 사람 승인·보류·수정 요청의 공통 선택과 기록 방식은
@@ -168,7 +171,7 @@ AC를 작성하기 전에 담당자에게 질문해 결정을 기록한다. 이�
 
 ### 4.1 작업 깊이
 
-깊이는 `단순 / 일반 / 설계 필요` 3단계며, 에이전트가 제안하고 사람이 명세 승인 시 확정한다.
+깊이는 `단순 / 일반 / 설계 필요` 3단계며, 에이전트가 제안하고 사람이 통합 사전 승인 시 확정한다.
 
 | 깊이 | 해당 작업 | Plan 산출물 |
 |---|---|---|
@@ -188,15 +191,16 @@ AC를 작성하기 전에 담당자에게 질문해 결정을 기록한다. 이�
 
 ## 5. 공식 작업 기록
 
-새 작업은 사용자 요청을 `docs/product-specs/`에 먼저 기록한다. 명세가 `approved`가 된 뒤
-`docs/exec-plans/active/`에 실행 계획을 만들고, 사람 승인·머지 후 `completed/`로 이동한다.
+새 작업은 사용자 요청을 `docs/product-specs/`에 기록하고 Product Spec과 Exec Plan 초안을
+함께 준비한다. 통합 사전 승인 뒤 두 문서를 승인 상태로 전환하고, 리뷰 후 사람 완료 승인·머지 시
+실행 계획을 `completed/`로 이동한다.
 형식은 `docs/definition-of-done.md`의 스키마를 따른다.
 
 제품 명세는 무엇을 만들지의 계약이고, 실행 계획은 어떻게 구현·검증할지의 계약이다.
 구현자·검증자·리뷰어는 같은 두 경로를 지정해 작업한다.
 
 - 명세 생성 시: 사용자 요청 원문·질문·AC 작성, 상태 `draft`
-- 명세 승인 후: 실행 계획·검증 계획·회귀 검증 대상 작성, 상태 `active`
+- 통합 사전 승인 후: 두 문서에 같은 묶음 ID·결정자·일자를 기록하고 계획 검증 통과
 - 자동 검증 완료 시: 실행 계획에 완료 기록·AC 판정 추가, 상태 `READY_FOR_REVIEW`
 - PR 승인·머지 후: 사람이 상태를 `done`으로 확정하고 `completed/`로 이동
 
@@ -213,8 +217,15 @@ AI 도구별 세션 파일(예: `.opencode/plan.md`)은 임시 작업용이며 �
 - 커밋 메시지: 프로젝트 컨벤션에 따름 (기본: `<type>: <요약>`)
 - 하나의 커밋 = 하나의 논리적 변경
 - 제품 명세와 실행 계획은 해당 작업의 코드와 함께 커밋한다
+- 기본 제안 단위는 Task가 아니라 사용자 요청의 Product Spec이다. 개별 Task 완료는 진행 기록이며, 이 시점에 에이전트는 커밋 여부를 제안하거나 승인 요청하지 않는다.
+- 모든 승인된 Task가 완료되고 통합 작업 트리에서 전체 검증, 독립 리뷰, 수렴 게이트가 끝나 `READY_FOR_REVIEW`가 된 뒤, 에이전트는 Spec 전체를 대표하는 하나의 논리적 커밋을 사용자에게 제안한다. 아직 완료되지 않은 Task나 실패·미검증 AC가 있으면 제안하지 않는다.
+- 예외는 사용자가 중간 커밋 체크포인트를 명시적으로 요청한 경우 또는 여러 독립 커밋 단위가 Exec Plan에 명시되어 통합 사전 승인된 경우뿐이다. 예외도 계획된 경계와 승인 범위를 넘지 않는다.
+- 승인된 병렬 Worktree 실행 중 필요한 격리 브랜치 로컬 커밋은 오케스트레이션 절차의 내부 단계일 수 있다. 이는 사용자에게 Task마다 커밋을 제안하는 것과 다르며, 통합 브랜치의 최종 커밋 제안은 위 기본 시점을 따른다.
 - AI 도구는 사용자 명시적 승인 없이 commit/push하지 않는다
 - 커밋과 푸시는 별도 승인을 받는다 — 커밋 승인을 푸시 승인으로 재사용하지 않는다
+- 이 제안 시점과 예외 규칙은 Codex, Claude Code, OpenCode에 동일하게 적용한다.
+- 병렬 실행(오케스트레이션 계약)의 통합 브랜치·worktree 브랜치 로컬 커밋은 해당 Exec Plan
+  승인에 포괄 승인된다. 공유 브랜치(main·develop) 병합과 push는 별도 승인을 유지한다
 
 ## 8. 브랜치 규칙
 

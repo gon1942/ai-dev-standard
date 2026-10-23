@@ -15,6 +15,88 @@ const {
   loadE2EConfig,
 } = require("../e2e");
 
+// Task Graph 검증 — 선택 섹션. 오류 메시지는 bash 참조 구현과 바이트 동치여야 한다.
+function taskGraphProblems(plan) {
+  const section = sectionInside(plan, /^## Task Graph$/).join("\n");
+  const rows = [];
+  for (const line of section.split("\n")) {
+    if (!line.startsWith("|")) continue;
+    const cells = line.split("|").map((c) => c.trim());
+    const id = cells[1] || "";
+    if (id === "" || id === "Task") continue; // 빈 셀·헤더
+    if (/^[-: ]*$/.test(id)) continue; // 구분 행
+    rows.push({
+      id,
+      deps: cells[2] || "",
+      status: cells[4] || "",
+    });
+  }
+  if (rows.length === 0) return [];
+
+  const depList = (deps) => {
+    const d = deps.trim();
+    if (d === "" || d === "—" || d === "해당 없음") return [];
+    return d.split(/[\s,]+/).filter(Boolean);
+  };
+
+  // 1) Task ID 형식
+  for (const r of rows) {
+    if (!/^T[0-9]+$/.test(r.id)) {
+      return [`Task Graph의 Task ID 형식이 잘못되었습니다: ${r.id}`];
+    }
+  }
+  // 2) 중복 ID
+  const seen = new Set();
+  for (const r of rows) {
+    if (seen.has(r.id)) {
+      return [`Task Graph에 중복 Task ID가 있습니다: ${r.id}`];
+    }
+    seen.add(r.id);
+  }
+  // 3) 상태 값 (구현 완료와 검증 완료는 구분된 값)
+  const STATUS = ["구현 전", "구현 완료", "검증 완료"];
+  for (const r of rows) {
+    const value = r.status === "" ? "(빈 값)" : r.status;
+    if (!STATUS.includes(r.status)) {
+      return [`Task Graph의 상태 값이 허용 목록에 없습니다: ${value} (허용: 구현 전, 구현 완료, 검증 완료)`];
+    }
+  }
+  // 4) 의존 참조 유효성
+  const ids = new Set(rows.map((r) => r.id));
+  for (const r of rows) {
+    for (const tok of depList(r.deps)) {
+      if (!ids.has(tok)) {
+        return [`Task Graph의 의존성이 정의되지 않은 Task를 참조합니다: ${tok}`];
+      }
+    }
+  }
+  // 5) 순환 참조
+  const deps = new Map(rows.map((r) => [r.id, depList(r.deps)]));
+  const visiting = [];
+  const visited = new Set();
+  let cycle = null;
+  const dfs = (node) => {
+    if (cycle || visited.has(node)) return;
+    const at = visiting.indexOf(node);
+    if (at !== -1) {
+      cycle = visiting.slice(at).concat(node).join(" -> ");
+      return;
+    }
+    visiting.push(node);
+    for (const d of deps.get(node) || []) dfs(d);
+    visiting.pop();
+    visited.add(node);
+  };
+  for (const r of rows) {
+    dfs(r.id);
+    if (cycle) break;
+  }
+  if (cycle) {
+    return [`Task Graph에 순환 참조가 있습니다: ${cycle}`];
+  }
+  return [];
+}
+
 function run(args) {
   // bash: 인자 1개 + 파일 존재 + docs/exec-plans/active/ 경로 검사
   if (args.length !== 1 || !fs.existsSync(path.resolve(ROOT, args[0]))) {
@@ -53,6 +135,29 @@ function run(args) {
     fail(`승인된 제품 명세가 아닙니다: ${specFile}`, 2);
   }
 
+  const field = (content, name) => {
+    const match = content.match(new RegExp(`^- ${name}: (.*)$`, "m"));
+    return match ? match[1].trim() : "";
+  };
+  const specBundle = field(spec, "사전 승인 묶음");
+  const planBundle = field(plan, "사전 승인 묶음");
+  if (specBundle || planBundle) {
+    if (!specBundle || !planBundle) {
+      fail("사전 승인 기록이 명세와 계획 양쪽에 필요합니다.", 2);
+    }
+    if (!/^PREAPPROVAL-[0-9]{8}-[0-9]{6}$/.test(specBundle) || specBundle !== planBundle) {
+      fail("사전 승인 묶음 ID가 명세와 계획에서 일치하지 않습니다.", 2);
+    }
+    for (const name of ["승인 결정자", "승인 일자"]) {
+      const specValue = field(spec, name);
+      const planValue = field(plan, name);
+      if (!specValue || specValue === "pending" || specValue !== planValue ||
+          (name === "승인 일자" && !/^\d{4}-\d{2}-\d{2}$/.test(specValue))) {
+        fail("사전 승인 결정자 또는 일자가 양쪽 문서에서 일치하지 않습니다.", 2);
+      }
+    }
+  }
+
   if (/^- 유형: 버그/m.test(spec)) {
     if (!/^## 재현 조건/m.test(spec)) {
       fail("버그 유형 명세에 '## 재현 조건' 섹션이 필요합니다.", 2);
@@ -74,6 +179,12 @@ function run(args) {
 
   if (/(^|\s)\.\.\./m.test(plan)) {
     fail("실행 계획에 미작성 placeholder(...)가 남아 있습니다.", 2);
+  }
+
+  // Task Graph (선택 섹션) — 데이터 행이 없으면 검증을 생략한다.
+  {
+    const problems = taskGraphProblems(plan);
+    if (problems.length > 0) fail(problems[0], 2);
   }
 
   // bash: sed -n '/^## 완료 조건/,/^## /p' | grep -oE 'AC-[0-9]+' | sort -u

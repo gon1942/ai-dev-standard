@@ -64,6 +64,32 @@ sed -i '/| AC-01 | shell test | exit 0 |/a| AC-02 | shell test | exit 0 |' "$PLA
 scripts/validate-plan.sh "$PLAN" >/dev/null
 echo 'PASS: validate-plan approval and AC traceability'
 
+# 공동 사전 승인 식별자가 있는 경우 양쪽 기록이 모두 일치해야 한다.
+sed -i '/^- 상태: approved$/a- 사전 승인 묶음: PREAPPROVAL-20261023-000001\n- 승인 결정자: 사용자\n- 승인 일자: 2026-10-23' "$SPEC"
+sed -i '/^- 승인: approved$/a- 사전 승인 묶음: PREAPPROVAL-20261023-000001\n- 승인 결정자: 사용자\n- 승인 일자: 2026-10-23' "$PLAN"
+scripts/validate-plan.sh "$PLAN" >/dev/null
+
+sed -i 's/PREAPPROVAL-20261023-000001/PREAPPROVAL-20261023-000002/' "$PLAN"
+if scripts/validate-plan.sh "$PLAN" >/dev/null 2>&1; then
+  echo 'FAIL: 불일치한 사전 승인 묶음이 통과함' >&2
+  exit 1
+fi
+sed -i 's/PREAPPROVAL-20261023-000002/PREAPPROVAL-20261023-000001/' "$PLAN"
+sed -i 's/^- 승인 일자: 2026-10-23$/- 승인 일자: yesterday/' "$PLAN"
+if scripts/validate-plan.sh "$PLAN" >/dev/null 2>&1; then
+  echo 'FAIL: 형식이 잘못된 사전 승인 일자가 통과함' >&2
+  exit 1
+fi
+sed -i 's/^- 승인 일자: yesterday$/- 승인 일자: 2026-10-23/' "$PLAN"
+sed -i '/^- 승인 결정자:/d' "$PLAN"
+if scripts/validate-plan.sh "$PLAN" >/dev/null 2>&1; then
+  echo 'FAIL: 부분 기록된 사전 승인이 통과함' >&2
+  exit 1
+fi
+sed -i '/^- 사전 승인 묶음:/d; /^- 승인 일자:/d' "$PLAN"
+sed -i '/^- 사전 승인 묶음:/d; /^- 승인 결정자:/d; /^- 승인 일자:/d' "$SPEC"
+scripts/validate-plan.sh "$PLAN" >/dev/null
+
 BUG_SPEC="docs/product-specs/${TOKEN}-bug.md"
 BUG_PLAN="docs/exec-plans/active/${TOKEN}-bug.md"
 cleanup() { rm -f "$SPEC" "$PLAN" "$BUG_SPEC" "$BUG_PLAN"; }
@@ -158,3 +184,114 @@ write_bug_plan
 scripts/validate-plan.sh "$BUG_PLAN" >/dev/null
 
 echo 'PASS: bug reproduction gate 7 branches'
+
+# ── Task Graph 게이트 (선택 섹션) ──
+TG_PLAN="docs/exec-plans/active/${TOKEN}-tg.md"
+cleanup() { rm -f "$SPEC" "$PLAN" "$BUG_SPEC" "$BUG_PLAN" "$TG_PLAN"; }
+
+write_tg_plan() {
+  cat > "$TG_PLAN" <<EOF
+# Exec Plan: task graph fixture
+
+- 상태: active
+- 승인: approved
+- 제품 명세: $SPEC
+
+## 구현 계획
+
+- 목적: task graph gate
+
+## 구현 작업
+
+| 순서 | 변경 대상 | 변경 내용·인터페이스 | 테스트·검증 명령 | 기대 증거 | AC |
+|---:|---|---|---|---|---|
+| 1 | a | b | c | d | AC-01 |
+| 2 | a | b | c | d | AC-02 |
+
+$1
+
+## 검증 계획
+
+| AC | 검증 방법 | 기대 증거 |
+|---|---|---|
+| AC-01 | shell test | exit 0 |
+| AC-02 | shell test | exit 0 |
+
+## 회귀 검증 대상
+
+- validate-plan
+EOF
+}
+
+TG_SECTION='## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | — | scripts/a.js | 구현 전 |
+| T2 | T1 | scripts/b.js | 구현 전 |'
+
+# 정상 그래프 → 통과
+write_tg_plan "$TG_SECTION"
+scripts/validate-plan.sh "$TG_PLAN" >/dev/null
+
+# 섹션 없음(하위 호환) → 통과
+write_tg_plan ""
+scripts/validate-plan.sh "$TG_PLAN" >/dev/null
+
+# 섹션 있고 행 0개 → 통과 (검증 생략)
+write_tg_plan '## Task Graph'
+scripts/validate-plan.sh "$TG_PLAN" >/dev/null
+
+expect_tg_block() {
+  write_tg_plan "$1"
+  if scripts/validate-plan.sh "$TG_PLAN" >/dev/null 2>&1; then
+    echo "FAIL: Task Graph — $2 — 차단되지 않고 통과함" >&2
+    exit 1
+  fi
+}
+
+# 중복 ID → 차단
+expect_tg_block '## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | — | a.js | 구현 전 |
+| T1 | — | b.js | 구현 전 |' "중복 Task ID"
+
+# 미정의 참조 → 차단
+expect_tg_block '## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | T9 | a.js | 구현 전 |' "미정의 의존 참조"
+
+# 순환 참조 → 차단
+expect_tg_block '## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | T2 | a.js | 구현 전 |
+| T2 | T1 | b.js | 구현 전 |' "순환 참조"
+
+# 자기 참조 → 차단 (1-node 순환)
+expect_tg_block '## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | T1 | a.js | 구현 전 |' "자기 참조"
+
+# 허용 외 상태 → 차단
+expect_tg_block '## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | — | a.js | 완료 |' "허용 외 상태 값"
+
+# ID 형식 오류 → 차단
+expect_tg_block '## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| A1 | — | a.js | 구현 전 |' "Task ID 형식"
+
+echo 'PASS: task graph gate 9 branches'

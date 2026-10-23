@@ -111,7 +111,7 @@ AI 코딩 도구를 여러 개 쓰거나, 사람과 AI가 같은 프로젝트에
   → Git 상태 확인
   → 요청과 관련된 이전 작업만 상세 확인
       ↓
-요청 → Product Spec(AC) → [사람 승인 1] → Exec Plan(검증 방법) → [사람 승인 2]
+요청 → Product Spec(AC) + Exec Plan(검증 방법) 초안 → [통합 사전 승인 1회]
   → RED (기대 동작 실패 테스트 실행·증거 기록)
   → GREEN (최소 구현) → REFACTOR
   → Verification
@@ -126,14 +126,14 @@ AI 코딩 도구를 여러 개 쓰거나, 사람과 AI가 같은 프로젝트에
   → record-verification-evidence (실행 증거 자동 기록)
       ↓
 READY_FOR_REVIEW ← AI의 권한은 여기까지
-  → [사람 승인 3] → complete-exec-plan → done · completed/ 보관
+  → [리뷰 후 완료 승인 1회] → complete-exec-plan → done · completed/ 보관
   → (선택) 회고 → 개선 후보 → 사람 승인 → 별도 작업
 ```
 
 | 단계 | 목적 | 완료 기준 |
 |---|---|---|
 | 세션 준비 | 환경·이전 작업 상태 복원 | `session-preflight --start` + `work-status` |
-| Plan | 요청을 승인 가능한 명세·계획으로 확정 | 승인된 Spec + Plan + `validate-plan` PASS |
+| Plan | 요청을 승인 가능한 명세·계획으로 확정 | 통합 승인된 Spec + Plan + `validate-plan` PASS |
 | RED | 기대 동작을 테스트로 확정·실행 | 실패 테스트 실행 + 증거 기록 (§2.2) |
 | Implement | 최소 구현으로 GREEN 달성 | 테스트 통과 + 통과 상태 유지 |
 | Verification | 실행 증거와 독립 리뷰로 AC 확인 | Verify + Review + Convergence PASS |
@@ -183,8 +183,9 @@ scripts/build-framework-template.sh --output /tmp/ai-dev-standard-template
 5. `docs/product-specs/`, `docs/exec-plans/`의 흐름을 프로젝트에 맞게 확인
 6. 첫 커밋
 
-새 작업은 `scripts/new-product-spec.sh <작업명> <사용자 요청 원문>`으로 제품 명세를 만들고,
-사람이 승인한 뒤 `scripts/new-exec-plan.sh <명세파일>`로 실행 계획을 생성한다.
+새 작업은 `scripts/new-product-spec.sh <작업명> <사용자 요청 원문>`으로 명세 초안을 만들고,
+`scripts/new-exec-plan.sh <명세파일>`로 계획 초안을 생성한다. 두 문서를 함께 검토해 한 번
+승인하며, 승인 기록은 두 문서 모두에 남긴다. 리뷰 후 완료 승인은 별도로 진행한다.
 
 ### 검증 모드: template / active
 

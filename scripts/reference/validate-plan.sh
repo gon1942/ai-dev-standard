@@ -33,6 +33,31 @@ if ! grep -Eq '^- 상태: approved$' "$SPEC_FILE"; then
   exit 2
 fi
 
+SPEC_BUNDLE="$(sed -n 's/^- 사전 승인 묶음: //p' "$SPEC_FILE" | head -n 1)"
+PLAN_BUNDLE="$(sed -n 's/^- 사전 승인 묶음: //p' "$PLAN_FILE" | head -n 1)"
+if [ -n "$SPEC_BUNDLE" ] || [ -n "$PLAN_BUNDLE" ]; then
+  if [ -z "$SPEC_BUNDLE" ] || [ -z "$PLAN_BUNDLE" ]; then
+    echo "사전 승인 기록이 명세와 계획 양쪽에 필요합니다." >&2
+    exit 2
+  fi
+  if ! [[ "$SPEC_BUNDLE" =~ ^PREAPPROVAL-[0-9]{8}-[0-9]{6}$ ]] || [ "$SPEC_BUNDLE" != "$PLAN_BUNDLE" ]; then
+    echo "사전 승인 묶음 ID가 명세와 계획에서 일치하지 않습니다." >&2
+    exit 2
+  fi
+  for field in "승인 결정자" "승인 일자"; do
+    SPEC_VALUE="$(sed -n "s/^- ${field}: //p" "$SPEC_FILE" | head -n 1)"
+    PLAN_VALUE="$(sed -n "s/^- ${field}: //p" "$PLAN_FILE" | head -n 1)"
+    if [ -z "$SPEC_VALUE" ] || [ "$SPEC_VALUE" = "pending" ] || [ "$SPEC_VALUE" != "$PLAN_VALUE" ]; then
+      echo "사전 승인 결정자 또는 일자가 양쪽 문서에서 일치하지 않습니다." >&2
+      exit 2
+    fi
+    if [ "$field" = "승인 일자" ] && ! [[ "$SPEC_VALUE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+      echo "사전 승인 결정자 또는 일자가 양쪽 문서에서 일치하지 않습니다." >&2
+      exit 2
+    fi
+  done
+fi
+
 if grep -q '^- 유형: 버그' "$SPEC_FILE"; then
   if ! grep -q '^## 재현 조건' "$SPEC_FILE"; then
     echo "버그 유형 명세에 '## 재현 조건' 섹션이 필요합니다." >&2
@@ -56,6 +81,100 @@ fi
 
 if grep -Eq '(^|[[:space:]])\.\.\.' "$PLAN_FILE"; then
   echo "실행 계획에 미작성 placeholder(...)가 남아 있습니다." >&2
+  exit 2
+fi
+
+# Task Graph (선택 섹션) — 데이터 행이 없으면 검증을 생략한다.
+# 오류 메시지는 Node 구현(scripts/lib/commands/validate-plan.js)과 바이트 동치여야 한다.
+TASK_GRAPH_ERROR="$(awk '
+function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+/^## Task Graph$/{inside=1; next} /^## /{inside=0}
+inside && /^\|/ {
+  n=split($0, raw, "|")
+  id=trim(raw[2])
+  if (id == "" || id == "Task") next
+  if (id ~ /^[-: ]*$/) next
+  cnt++
+  tg_id[cnt]=id
+  tg_dep[cnt]=(n >= 3 ? trim(raw[3]) : "")
+  tg_status[cnt]=(n >= 5 ? trim(raw[5]) : "")
+}
+END {
+  if (cnt == 0) exit 0
+  # 1) Task ID 형식
+  for (i = 1; i <= cnt; i++) {
+    if (tg_id[i] !~ /^T[0-9]+$/) {
+      printf "Task Graph의 Task ID 형식이 잘못되었습니다: %s\n", tg_id[i]
+      exit 0
+    }
+  }
+  # 2) 중복 ID
+  for (i = 1; i <= cnt; i++) {
+    for (j = 1; j < i; j++) {
+      if (tg_id[j] == tg_id[i]) {
+        printf "Task Graph에 중복 Task ID가 있습니다: %s\n", tg_id[i]
+        exit 0
+      }
+    }
+  }
+  # 3) 상태 값
+  for (i = 1; i <= cnt; i++) {
+    ok = (tg_status[i] == "구현 전" || tg_status[i] == "구현 완료" || tg_status[i] == "검증 완료")
+    if (!ok) {
+      value = (tg_status[i] == "" ? "(빈 값)" : tg_status[i])
+      printf "Task Graph의 상태 값이 허용 목록에 없습니다: %s (허용: 구현 전, 구현 완료, 검증 완료)\n", value
+      exit 0
+    }
+  }
+  # 의존 토큰화 — depmap[id]는 공백 구분 토큰
+  for (i = 1; i <= cnt; i++) {
+    d = tg_dep[i]
+    depmap[tg_id[i]] = ""
+    if (d == "" || d == "—" || d == "해당 없음") continue
+    ntok = split(d, toks, /[\t ,]+/)
+    for (k = 1; k <= ntok; k++) {
+      if (toks[k] == "") continue
+      depmap[tg_id[i]] = depmap[tg_id[i]] (depmap[tg_id[i]] == "" ? "" : " ") toks[k]
+    }
+  }
+  # 4) 의존 참조 유효성
+  for (i = 1; i <= cnt; i++) {
+    nt = split(depmap[tg_id[i]], dt, " ")
+    for (k = 1; k <= nt; k++) {
+      found = 0
+      for (j = 1; j <= cnt; j++) if (tg_id[j] == dt[k]) { found = 1; break }
+      if (!found) {
+        printf "Task Graph의 의존성이 정의되지 않은 Task를 참조합니다: %s\n", dt[k]
+        exit 0
+      }
+    }
+  }
+  # 5) 순환 참조 (DFS)
+  cyclmsg = ""
+  for (i = 1; i <= cnt && cyclmsg == ""; i++) dfs(tg_id[i])
+  if (cyclmsg != "") {
+    printf "Task Graph에 순환 참조가 있습니다: %s\n", cyclmsg
+    exit 0
+  }
+}
+function dfs(node,   i, nd, arr, path, s, e) {
+  if (cyclmsg != "" || done[node]) return
+  if (node in onstack) {
+    path = ""
+    for (i = pos[node]; i <= slen; i++) path = path (i > pos[node] ? " -> " : "") stack[i]
+    cyclmsg = path " -> " node
+    return
+  }
+  slen++; stack[slen] = node; pos[node] = slen; onstack[node] = 1
+  nd = split(depmap[node], arr, " ")
+  for (i = 1; i <= nd; i++) dfs(arr[i])
+  delete onstack[node]
+  slen--
+  done[node] = 1
+}
+' "$PLAN_FILE")"
+if [ -n "$TASK_GRAPH_ERROR" ]; then
+  echo "$TASK_GRAPH_ERROR" >&2
   exit 2
 fi
 
