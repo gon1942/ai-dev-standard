@@ -171,8 +171,8 @@ AI_DEV_STANDARD_DUPLICATE_CHECK=true
       copyDocument(document);
     }
     for (const contract of [
-      "standard-plan.md", "standard-implement.md", "standard-verify.md",
-      "standard-uat.md", "standard-review.md", "standard-improve.md",
+      "standard-plan.md", "standard-implement.md", "standard-orchestration.md",
+      "standard-verify.md", "standard-uat.md", "standard-review.md", "standard-improve.md",
     ]) {
       copyDocument(`docs/skill-contracts/${contract}`);
     }

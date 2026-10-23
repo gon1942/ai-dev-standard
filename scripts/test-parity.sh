@@ -523,7 +523,7 @@ crg_record_case "CRG기록후행구분자" "$CRG_TRAILING_RECORD"
     cp "$ROOT/$f" "$TGT/$f" 2>/dev/null || touch "$TGT/$f"
   done
   cp "$ROOT/docs/framework-runtime-assets.tsv" "$TGT/docs/framework-runtime-assets.tsv"
-  for c in standard-plan.md standard-implement.md standard-verify.md standard-review.md standard-improve.md standard-uat.md; do
+  for c in standard-plan.md standard-implement.md standard-orchestration.md standard-verify.md standard-review.md standard-improve.md standard-uat.md; do
     cp "$ROOT/docs/skill-contracts/$c" "$TGT/docs/skill-contracts/$c" 2>/dev/null || touch "$TGT/docs/skill-contracts/$c"
   done
   cp "$ROOT/.ai-dev-standard.env" "$TGT/.ai-dev-standard.env"
