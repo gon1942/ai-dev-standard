@@ -19,6 +19,14 @@ if ! grep -Eq '^AI_DEV_STANDARD_MODE=active$' .ai-dev-standard.env; then
   exit 1
 fi
 
+if [ -f .ai-dev-standard/verification.json ]; then
+  readiness="$(node -e 'const result = require("./scripts/lib/verification").isVerificationReady(process.cwd()); process.stdout.write(result.ready ? "ready" : result.reason)')" || readiness="검증 준비 상태 확인 실패"
+  if [ "$readiness" != "ready" ]; then
+    echo "CONVERGENCE: BLOCKED — 검증 준비 증거가 없거나 오래되었습니다 ($readiness)." >&2
+    exit 1
+  fi
+fi
+
 if ! grep -Eq '^## 완료 기록$' "$PLAN_FILE"; then
   echo "CONVERGENCE: BLOCKED — 완료 기록이 없습니다." >&2
   exit 1
@@ -30,6 +38,26 @@ fi
 if ! grep -Eq '^- 리뷰: PASS$' "$PLAN_FILE"; then
   echo "CONVERGENCE: BLOCKED — 리뷰 결과가 PASS가 아닙니다." >&2
   exit 1
+fi
+
+REVIEW_VERSION="$(sed -n 's/^- 리뷰 계약 버전: //p' "$PLAN_FILE" | head -n 1)"
+if [ -n "$REVIEW_VERSION" ]; then
+REVIEW_RESULT="$(node - "$PLAN_FILE" 2>/dev/null <<'NODE' || true
+const fs = require("fs");
+const { computeSourceFingerprint } = require("./scripts/lib/evidence");
+const { validateReviewEvidence } = require("./scripts/lib/review-evidence");
+const planPath = process.argv[2];
+const result = validateReviewEvidence(
+  fs.readFileSync(planPath, "utf8"),
+  computeSourceFingerprint(planPath) || undefined
+);
+process.stdout.write(result.valid ? "PASS" : result.reason);
+NODE
+)"
+if [ "$REVIEW_RESULT" != "PASS" ]; then
+  echo "CONVERGENCE: BLOCKED — ${REVIEW_RESULT:-리뷰 기록을 확인할 수 없습니다}." >&2
+  exit 1
+fi
 fi
 
 ac_rows="$(awk '/^## AC 판정$/{inside=1; next} inside && /^## /{exit} inside && /^\| AC-[^|]+ \|/{print}' "$PLAN_FILE")"

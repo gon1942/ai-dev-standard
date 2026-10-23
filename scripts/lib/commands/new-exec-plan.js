@@ -43,6 +43,7 @@ function run(args) {
 - 상태: active
 - 승인: pending
 - 검증 계약 버전: 2
+- 리뷰 계약 버전: 1
 - 제품 명세: ${specFile}
 ${bundleId ? `- 사전 승인 묶음: ${bundleId}\n- 승인 결정자: pending\n- 승인 일자: pending` : ""}
 - 생성: ${date}, 담당: <이름/도구>

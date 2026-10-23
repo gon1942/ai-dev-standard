@@ -26,7 +26,13 @@ node scripts/lib/cli.js work-status
 작업 요청에서는 `scripts/session-preflight.sh --status`로 캐시를 확인한다.
 
 - PASS: Plan과 Coding 진행 가능
-- WARNING: Plan 가능, `can_code=false`이면 active 검증 구성 전 Coding 차단
+- WARNING: `can_plan`, `can_initialize`, `can_code`를 분리해 따른다. 신규 프로젝트는 승인된 검증
+  프로필을 initializing 상태에서 실행해 필수 검사가 통과한 후 active로 전환한다.
 - BLOCK: 원인 해결과 재검사 전 Plan/Coding 중단
+
+`verification_mode`가 `initializing`이면 `.ai-dev-standard/bootstrap-status.json`을 읽어 마지막
+Bootstrap 단계, 진행/실패 작업, 완료된 setup 작업을 사용자에게 보고하고 해당 지점부터 안전하게
+재개한다. 실패한 setup은 부분 변경 가능성을 먼저 확인한 뒤 재시도한다. 사용자가 설치를 거부한 경우
+Bootstrap 실행 명령을 호출하지 않는다.
 
 기존 파일·소스·의존성·CI/CD를 자동 수정하지 않는다. 도구별 로직을 만들지 말고 공통 결과를 사용한다.

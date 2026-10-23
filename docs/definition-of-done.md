@@ -22,7 +22,7 @@ AI는 `READY_FOR_REVIEW`까지만 선언할 수 있다.
 1. **요구사항 충족**: 제품 명세의 AC 표가 모두 충족됨
 2. **검증 통과**: `node scripts/lib/cli.js record-verification-evidence <실행계획>` 종료코드 0
    (내부에서 공통 검증 `verify-plan`·`verify`를 직접 실행하고 실행 증거를 기록)
-   (lint + typecheck + 테스트 전부)
+   (프로젝트의 승인된 필수 검증 프로필 또는 프로필이 없는 레거시 프로젝트의 필수 lint/typecheck/test)
 3. **회귀 없음**: 기존 테스트가 새 변경으로 깨지지 않음
 4. **기록 완료**: 실행 계획 파일에 완료 기록 섹션 작성됨
 5. **범위 준수**: git diff가 계획 범위 내 (벗어난 변경은 완료 기록에 명시)

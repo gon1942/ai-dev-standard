@@ -8,6 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { ROOT, sectionInside } = require("../util");
+const { reviewContractVersion, validateReviewEvidence } = require("../review-evidence");
 
 function readIfExists(filePath) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : null;
@@ -17,7 +18,9 @@ function classifyActivePlan(content) {
   const statusMatch = content.match(/^- 상태: (.+)$/m);
   const status = statusMatch ? statusMatch[1].trim() : "unknown";
   const hasCompletion = /^## 완료 기록$/m.test(content);
-  const reviewPass = /^- 리뷰: PASS$/m.test(content);
+  const reviewEvidence = validateReviewEvidence(content);
+  const reviewVersion = reviewContractVersion(content);
+  const reviewPass = reviewEvidence.valid;
   const acRows = sectionInside(content, /^## AC 판정$/).filter((line) => /^\| AC-[^|]+ \|/.test(line));
   const allPass =
     acRows.length > 0 && acRows.every((row) => /^\| AC-[^|]+ \| PASS \| .+ \|$/.test(row));
@@ -25,6 +28,13 @@ function classifyActivePlan(content) {
 
   if (status === "READY_FOR_REVIEW") {
     return { status, category: "승인 대기", detail: "사람 승인 후 complete-exec-plan으로 완료 처리" };
+  }
+  if (reviewVersion !== null && reviewPass && hasCompletion && allPass && status === "active") {
+    return {
+      status,
+      category: "진행 중",
+      detail: "리뷰 기록 형식 확인됨 — Converge를 실행해 검증·리뷰 소스 지문 최신성 확인 필요",
+    };
   }
   if (convergedEvidence && status === "active") {
     return {
@@ -35,7 +45,7 @@ function classifyActivePlan(content) {
   }
   const reasons = [];
   if (!hasCompletion) reasons.push("완료 기록 없음");
-  if (!reviewPass) reasons.push("리뷰 PASS 없음");
+  if (!reviewPass) reasons.push(reviewEvidence.reason);
   if (acRows.length === 0) reasons.push("AC 판정 표 없음");
   else if (!allPass) reasons.push("AC 미통과 존재");
   return {

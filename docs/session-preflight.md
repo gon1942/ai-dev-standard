@@ -28,7 +28,10 @@ scripts/session-preflight.sh --status
 ```
 
 - 유효한 `PASS`: Plan과 Coding 진행 가능
-- 유효한 `WARNING`: Plan 가능. `can_code=false`면 active 검증 구성을 확정하기 전 Coding 차단
+- 유효한 `WARNING`: `can_plan`, `can_initialize`, `can_code`를 분리해 판단한다. 신규 프로젝트는
+  Plan 승인 후 검증 프로필을 구성하고 필수 검사를 통과시켜 active로 전환할 수 있다.
+- `initializing` 상태에서는 `.ai-dev-standard/bootstrap-status.json`의 단계·실패 작업·완료 setup을
+  확인해 재개 지점을 보고한다. 부분 설치/설정은 안전성을 확인한 뒤 승인된 setup을 재시도한다.
 - `BLOCK`, 캐시 없음, 지문 불일치: Plan/Coding 중단 후 `--start`로 재검사
 
 ## 무효화 기준
@@ -36,7 +39,8 @@ scripts/session-preflight.sh --status
 다음 파일의 내용 또는 존재 여부가 바뀌면 지문이 달라져 세션 상태가 무효가 된다.
 
 - `AGENTS.md`, `CLAUDE.md`, `.ai-dev-standard.env`
-- `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`
+- `.ai-dev-standard/verification.json`, `.ai-dev-standard/verification-ready.json`,
+  `package.json`, lockfile, `pyproject.toml`, `go.mod`, `Cargo.toml`, JVM 빌드 명세
 - `docs/framework-runtime-assets.tsv` 및 그 안에 선언된 대상 배포 실행 자산
 - `docs/development-workflow.md`, `docs/project-preflight.md`
 

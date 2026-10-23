@@ -157,4 +157,14 @@ INVALID_CODE=$?
 set -e
 [ "$INVALID_CODE" -eq 2 ] || fail '잘못된 활성 계획 경로가 차단되지 않았습니다'
 
+# verify 통과 메시지는 다음 단계를 지시하고 READY_FOR_REVIEW 유도 문구를 포함하지 않는다.
+# (행위 동치는 test-parity.sh의 verify 케이스가 실측 비교로 담보 — 여기선 문자열 회귀를 고정한다.)
+grep -Fq '다음 단계: 독립 Review' "$ROOT/scripts/lib/commands/verify.js" \
+  || fail 'verify 통과 메시지에 다음 단계 지시(독립 Review)가 없습니다 (Node)'
+grep -Fq '다음 단계: 독립 Review' "$ROOT/scripts/reference/verify.sh" \
+  || fail 'verify 통과 메시지에 다음 단계 지시(독립 Review)가 없습니다 (bash 참조)'
+if grep -Fq 'READY_FOR_REVIEW 가능' "$ROOT/scripts/lib/commands/verify.js" "$ROOT/scripts/reference/verify.sh"; then
+  fail 'verify 통과 메시지가 READY_FOR_REVIEW를 유도합니다 (리뷰·수렴 전 불가)'
+fi
+
 echo 'PASS: verification evidence records PASS/FAIL safely without state transitions'

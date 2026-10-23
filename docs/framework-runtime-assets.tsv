@@ -6,8 +6,10 @@ target-script	scripts/test.sh	프로젝트 test 어댑터 (Node 엔진 shim)
 target-script	scripts/lib/cli.js	내부 엔진 진입점
 target-script	scripts/lib/util.js	엔진 공용 유틸
 target-script	scripts/lib/evidence.js	검증 증거 공용 경계·소스 상태 유틸
+target-script	scripts/lib/review-evidence.js	버전형 리뷰 기록·최신 소스 지문 검증
 target-script	scripts/lib/e2e.js	E2E 판정·설정 공용 유틸
 target-script	scripts/lib/e2e-profile.js	승인형 E2E 프로필 구성 공용 유틸
+target-script	scripts/lib/verification.js	프로젝트별 검증 프로필 로드·실행·준비 지문
 target-script	scripts/lib/commands/new-product-spec.js	제품 명세 생성 (Node)
 target-script	scripts/lib/commands/new-exec-plan.js	실행 계획 생성 (Node)
 target-script	scripts/lib/commands/lint.js	lint 어댑터 (Node 구현)
@@ -18,6 +20,7 @@ target-script	scripts/lib/commands/verify-plan.js	계획 검증 진입 (Node 구
 target-script	scripts/lib/commands/record-verification-evidence.js	검증 실행 증거 자동 기록 (Node 구현)
 target-script	scripts/lib/commands/record-e2e-evidence.js	E2E 검증 증거 기록·확인 (Node 구현)
 target-script	scripts/lib/commands/configure-e2e-profile.js	승인된 E2E 프로필 구성 (Node 구현)
+target-script	scripts/lib/commands/configure-verification.js	승인된 다중 구성요소 검증 프로필 구성 (Node 구현)
 target-script	scripts/lib/commands/converge-plan.js	수렴 게이트 (Node 구현)
 target-script	scripts/lib/commands/check-framework.js	골격 검사 (Node 구현)
 target-script	scripts/lib/commands/analyze-project.js	읽기 전용 소스 분석 (Node 구현)
@@ -40,6 +43,10 @@ target-script	scripts/verify-plan.sh	계획 기반 검증 진입점 (Node 엔진
 target-script	scripts/record-verification-evidence.sh	검증 실행 증거 자동 기록 (Node 엔진 shim)
 target-script	scripts/record-e2e-evidence.sh	E2E 검증 증거 기록·확인 (Node 엔진 shim)
 target-script	scripts/configure-e2e-profile.sh	승인된 E2E 프로필 구성 (Node 엔진 shim)
+target-script	scripts/configure-verification.sh	승인된 Bootstrap 검증 프로필 구성·실행 (Node 엔진 shim)
+target-script	scripts/record-bootstrap-approval.sh	통합 사전 승인 후 Bootstrap 문서 지문 기록 (Node 엔진 shim)
+target-script	scripts/lib/bootstrap-approval.js	Product Spec·Exec Plan 승인 내용 지문 검증 (Node 구현)
+target-script	scripts/lib/commands/record-bootstrap-approval.js	Bootstrap 사전 승인 지문 기록 (Node 구현)
 target-script	scripts/converge-plan.sh	최종 증거 수렴 판정 (Node 엔진 shim)
 target-script	scripts/new-product-spec.sh	제품 명세 생성
 target-script	scripts/new-exec-plan.sh	실행 계획 생성
@@ -68,5 +75,11 @@ repository-test	scripts/test-validate-plan.sh	계획 검증 게이트 회귀 테
 repository-test	scripts/test-plan-templates.sh	Plan 템플릿 회귀 테스트
 repository-test	scripts/test-e2e-gate.sh	E2E 판정·Runner·증거·수렴 회귀 테스트
 repository-test	scripts/test-e2e-profile.sh	승인형 E2E 프로필 제안·구성 회귀 테스트
+repository-test	scripts/test-verification-profile.sh	프로젝트 검증 프로필 스키마·안전 실행 회귀 테스트
+repository-test	scripts/test-verify-profile.sh	검증 프로필 기반 verify 및 initializing 모드 회귀 테스트
+repository-test	scripts/test-bootstrap-verification.sh	승인 Bootstrap 검증 프로필 구성 회귀 테스트
+repository-test	scripts/test-bootstrap-approval.sh	승인 문서 무결성·setup 실행 및 실패 복구 회귀 테스트
+repository-test	scripts/test-preflight-verification-profile.sh	Preflight 초기화·검증 준비 상태 회귀 테스트
+repository-test	scripts/test-verification-convergence.sh	검증 준비 신선성·수렴 게이트 회귀 테스트
 target-script	scripts/suggest-tools.sh	보조 도구 설치 안내 (Node 엔진 shim)
 target-script	scripts/lib/commands/suggest-tools.js	보조 도구 설치 안내 (Node 구현)

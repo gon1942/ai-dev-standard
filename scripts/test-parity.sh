@@ -419,6 +419,62 @@ CRG_BAD_STAGE_RECORD='## CRG 탐색 기록
 - 원본 소스 교차 확인: scripts/a.js'
 crg_record_case "CRG기록정상" "$CRG_VALID_RECORD"
 crg_record_case "CRG기록단계오류" "$CRG_BAD_STAGE_RECORD"
+
+# Task Graph 깊이 조건부 의무 — 명세 깊이 일반인데 그래프 없음 → 양측 동일 차단
+{
+  BD="$TMP/depth-bash"; ND="$TMP/depth-node"
+  setup_case "$BD" validate-plan.sh
+  write_gate_fixtures "$BD" template false simple
+  write_gate_fixtures "$ND" template false simple
+  for D in "$BD" "$ND"; do
+    sed -i.bak 's/^- 유형: /- 깊이: 일반\n- 유형: /' "$D/docs/product-specs/spec.md" && rm -f "$D/docs/product-specs/spec.md.bak"
+  done
+  set +e
+  (cd "$BD" && bash scripts/validate-plan.sh docs/exec-plans/active/plan.md) > "$TMP/depth-bash.out" 2>&1; BC=$?
+  node_cli "$ND" validate-plan docs/exec-plans/active/plan.md > "$TMP/depth-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "게이트-깊이의무차단" "$BC" "$TMP/depth-bash.out" "$NC" "$TMP/depth-node.out"
+}
+
+# 깊이 주석 형태("일반  (단순 | 일반 | 설계 필요)") + 그래프 없음 → 정규화 후 양측 동일 차단
+{
+  BD="$TMP/depth2-bash"; ND="$TMP/depth2-node"
+  setup_case "$BD" validate-plan.sh
+  write_gate_fixtures "$BD" template false simple
+  write_gate_fixtures "$ND" template false simple
+  for D in "$BD" "$ND"; do
+    sed -i.bak 's/^- 유형: /- 깊이: 일반  (단순 | 일반 | 설계 필요)\n- 유형: /' "$D/docs/product-specs/spec.md" && rm -f "$D/docs/product-specs/spec.md.bak"
+  done
+  set +e
+  (cd "$BD" && bash scripts/validate-plan.sh docs/exec-plans/active/plan.md) > "$TMP/depth2-bash.out" 2>&1; BC=$?
+  node_cli "$ND" validate-plan docs/exec-plans/active/plan.md > "$TMP/depth2-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "게이트-깊이주석정규화" "$BC" "$TMP/depth2-bash.out" "$NC" "$TMP/depth2-node.out"
+}
+
+# 깊이 설계 필요 + 그래프 있음 → 양측 통과
+{
+  BD="$TMP/depth3-bash"; ND="$TMP/depth3-node"
+  setup_case "$BD" validate-plan.sh
+  write_gate_fixtures "$BD" template false simple
+  write_gate_fixtures "$ND" template false simple
+  for D in "$BD" "$ND"; do
+    sed -i.bak 's/^- 유형: /- 깊이: 설계 필요\n- 유형: /' "$D/docs/product-specs/spec.md" && rm -f "$D/docs/product-specs/spec.md.bak"
+    cat >> "$D/docs/exec-plans/active/plan.md" <<'EOS'
+
+## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | — | a.js | 구현 전 |
+EOS
+  done
+  set +e
+  (cd "$BD" && bash scripts/validate-plan.sh docs/exec-plans/active/plan.md) > "$TMP/depth3-bash.out" 2>&1; BC=$?
+  node_cli "$ND" validate-plan docs/exec-plans/active/plan.md > "$TMP/depth3-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "게이트-깊이설계필요통과" "$BC" "$TMP/depth3-bash.out" "$NC" "$TMP/depth3-node.out"
+}
 # 후행 구분자 단계 목록("Plan, Verify,") — 양측 모두 유효로 취급 (동치 회귀 고정)
 CRG_TRAILING_RECORD='## CRG 탐색 기록
 
@@ -466,6 +522,30 @@ crg_record_case "CRG기록후행구분자" "$CRG_TRAILING_RECORD"
   node_cli "$ND" verify > "$TMP/g7-node.out" 2>&1; NC=$?
   set -e
   compare_outputs "검증-필수미구성실패" "$BC" "$TMP/g7-bash.out" "$NC" "$TMP/g7-node.out"
+}
+
+# g7b: verify — initializing + 검증 프로필 실행 결과가 Bash 기준선과 Node 엔진에서 동치
+{
+  BD="$TMP/g7b-bash"; ND="$TMP/g7b-node"
+  setup_case "$BD" lint.sh test.sh verify.sh
+  mkdir -p "$BD/scripts/lib" "$BD/.ai-dev-standard" "$ND/.ai-dev-standard"
+  cp "$ROOT/scripts/lib/verification.js" "$BD/scripts/lib/verification.js"
+  for D in "$BD" "$ND"; do
+    cat > "$D/.ai-dev-standard.env" <<'EOF'
+AI_DEV_STANDARD_MODE=initializing
+AI_DEV_STANDARD_REQUIRE_LINT=false
+AI_DEV_STANDARD_REQUIRE_TYPECHECK=false
+AI_DEV_STANDARD_REQUIRE_TEST=false
+EOF
+    cat > "$D/.ai-dev-standard/verification.json" <<EOF
+{"schema_version":1,"components":[{"id":"node","paths":["src/"],"checks":[{"id":"smoke","kind":"test","command":"$(command -v node)","args":["-e","process.exit(0)"],"cwd":".","required":true}]}]}
+EOF
+  done
+  set +e
+  (cd "$BD" && bash scripts/verify.sh) > "$TMP/g7b-bash.out" 2>&1; BC=$?
+  node_cli "$ND" verify > "$TMP/g7b-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "검증-initializing-프로필" "$BC" "$TMP/g7b-bash.out" "$NC" "$TMP/g7b-node.out"
 }
 
 # g8: converge — template 모드 → BLOCKED exit 1

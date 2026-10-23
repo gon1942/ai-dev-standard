@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# 독립 리뷰 진입점 — Standards Review와 Spec Review를 분리해 수행한다.
-# 기본 동작: git diff 기반 체크리스트 출력(사람/AI 리뷰어가 공통으로 사용)
-# 확장: 리뷰 전용 에이전트 또는 사람 리뷰 절차로 연결 (PLACEHOLDER)
+# 독립 리뷰 자료 진입점 — 리뷰 범위와 공통 체크리스트를 요약한다.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -16,7 +14,7 @@ while [ "$#" -gt 0 ]; do
       if [ -z "$BASE" ]; then BASE="$1"; fi; shift ;;
   esac
 done
-BASE="${BASE:-HEAD~1}"
+BASE="${BASE:-HEAD}"
 if [ -n "$PLAN_ARG" ] && [ ! -f "$PLAN_ARG" ]; then
   echo "실행 계획 파일을 찾을 수 없습니다: $PLAN_ARG" >&2
   exit 2
@@ -32,6 +30,8 @@ fi
 if [ -n "$PLAN_ARG" ]; then
   PURPOSE="$(sed -n 's/^- 목적: //p' "$PLAN_ARG" | head -n 1)"
   [ -n "$PURPOSE" ] || PURPOSE="(계획에 목적 미기입)"
+  SPEC_PATH="$(sed -n 's/^- 제품 명세: //p' "$PLAN_ARG" | head -n 1)"
+  [ -n "$SPEC_PATH" ] || SPEC_PATH="(계획에 명세 경로 없음)"
   AC_ROWS="$(awk '/^## AC 판정$/{inside=1; next} /^## /{inside=0} inside && /^\| AC-[^|]+ \|/{print}' "$PLAN_ARG")"
   AC_TOTAL=0; AC_PASS=0
   if [ -n "$AC_ROWS" ]; then
@@ -45,13 +45,34 @@ if [ -n "$PLAN_ARG" ]; then
     VERIFY_LINE="자동 검증 증거: ${AUTO_RESULT} (종료 코드 ${AUTO_EXIT})"
   fi
   [ -n "$VERIFY_LINE" ] || VERIFY_LINE="검증 기록 미기입"
-  echo "=== 작업 요약 ==="
+  SOURCE_FINGERPRINT="$(AI_DEV_STANDARD_ROOT="$PWD" node - "$PLAN_ARG" 2>/dev/null <<'NODE' || true
+const { computeSourceFingerprint } = require("./scripts/lib/evidence");
+process.stdout.write(computeSourceFingerprint(process.argv[2]) || "");
+NODE
+)"
+  echo "=== Review Packet ==="
   echo "[목적] $PURPOSE"
+  echo "[제품 명세] $SPEC_PATH"
+  if [ "$BASE_AVAILABLE" = true ]; then echo "[리뷰 기준] $BASE"; else echo "[리뷰 기준] Git 기준점 확인 불가"; fi
+  [ -n "$SOURCE_FINGERPRINT" ] || SOURCE_FINGERPRINT="확인 불가"
+  echo "[검토 지문] $SOURCE_FINGERPRINT"
+  declare -A CHANGE_STATUS=()
   if [ "$BASE_AVAILABLE" = true ]; then
-    CHANGED="$(git diff --name-only "$BASE" | grep -c . || true)"
-    echo "[내용] 변경 파일 ${CHANGED}건 — 상세는 아래 diff stat 참조"
-  else
-    echo "[내용] git 비교 기준 없음 — 작업 트리 확인 필요"
+    while IFS=$'\t' read -r status file; do
+      [ -n "$file" ] && CHANGE_STATUS["$file"]="$status "
+    done < <(git diff --name-status "$BASE")
+  fi
+  while IFS= read -r status_line; do
+    [ -n "$status_line" ] || continue
+    status="${status_line:0:2}"
+    file="${status_line:3}"
+    [ -n "$file" ] && CHANGE_STATUS["$file"]="$status"
+  done < <(git status --short --untracked-files=all 2>/dev/null || true)
+  CHANGES="$(for file in "${!CHANGE_STATUS[@]}"; do printf '%s\t%s\n' "$file" "${CHANGE_STATUS[$file]}"; done | LC_ALL=C sort -t $'\t' -k1,1)"
+  CHANGE_COUNT="$(printf '%s\n' "$CHANGES" | awk 'NF {count++} END {print count+0}')"
+  echo "[변경 파일] ${CHANGE_COUNT}건"
+  if [ "$CHANGE_COUNT" -eq 0 ]; then echo " (변경 파일 없음)"; else
+    while IFS=$'\t' read -r file status; do [ -n "$file" ] && printf ' %s %s\n' "$status" "$file"; done <<< "$CHANGES"
   fi
   if [ "$AC_TOTAL" -eq 0 ]; then AC_PART="AC 판정 없음"; else AC_PART="AC 판정 ${AC_PASS}/${AC_TOTAL} PASS"; fi
   echo "[결과·검증] ${AC_PART} · ${VERIFY_LINE}"
@@ -71,10 +92,11 @@ if [ -n "$PLAN_ARG" ]; then
     E2E_LINE="E2E 판정: ${E2E_METHOD} — ${E2E_RESULT}"
   fi
   echo "[E2E] ${E2E_LINE}"
+  echo "[검증 재실행] Review 자료 준비는 테스트·검증 명령을 실행하지 않음"
   echo ""
 fi
 
-echo "=== 독립 리뷰 체크리스트 (base: ${BASE_LABEL}) ==="
+echo "=== 독립 리뷰 절차 (base: ${BASE_LABEL}) ==="
 echo ""
 echo "[Standards Review] git diff ${BASE} 대상으로 점검한다:"
 echo ""
@@ -107,6 +129,6 @@ else
   echo "(git 비교 기준이 없거나 base가 무효함 — git status --short와 현재 작업 트리를 검토하세요)"
 fi
 echo ""
-echo "# PLACEHOLDER: 여기에 두 관점의 독립 리뷰 에이전트 호출을 연결한다."
-echo '# 예) claude -p "$(git diff <base>) 를 위 체크리스트로 리뷰해라"'
-echo '# 예) opencode run -a reviewer "..."'
+echo "독립 리뷰어는 Product Spec·Exec Plan·위 변경 범위·검증 증거만 근거로 검토하고, 구현 세션 대화는 전달하지 않는다."
+echo "기본은 단일 리뷰어가 Standards / Spec / Evidence를 한 번씩 검토한다. 별도 병렬 리뷰는 계획에 사유가 있을 때만 사용한다."
+echo "검증 증거가 최신이면 재실행하지 않는다. 소스 변경이나 증거 문제가 확인될 때만 Verify로 되돌린다."

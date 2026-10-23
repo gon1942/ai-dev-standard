@@ -7,6 +7,8 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 const { ROOT, fail, sectionInside } = require("../util");
 const { computeSourceFingerprint } = require("../evidence");
+const { isVerificationReady, loadVerificationProfile } = require("../verification");
+const { validateReviewEvidence } = require("../review-evidence");
 const {
   parseDecision,
   isManualUat,
@@ -39,6 +41,17 @@ function run(args) {
     );
   }
 
+  const verificationProfile = loadVerificationProfile(ROOT);
+  if (verificationProfile.status === "invalid") {
+    fail(`CONVERGENCE: BLOCKED — 검증 프로필 설정 오류: ${verificationProfile.message}`, 1);
+  }
+  if (verificationProfile.status === "ok") {
+    const readiness = isVerificationReady(ROOT);
+    if (!readiness.ready) {
+      fail(`CONVERGENCE: BLOCKED — 검증 준비 증거가 없거나 오래되었습니다 (${readiness.reason}).`, 1);
+    }
+  }
+
   const plan = fs.readFileSync(planAbs, "utf8");
   if (!/^## 완료 기록$/m.test(plan)) {
     fail("CONVERGENCE: BLOCKED — 완료 기록이 없습니다.", 1);
@@ -46,9 +59,9 @@ function run(args) {
   if (!/^## AC 판정$/m.test(plan)) {
     fail("CONVERGENCE: BLOCKED — AC 판정 표가 없습니다.", 1);
   }
-  if (!/^- 리뷰: PASS$/m.test(plan)) {
-    fail("CONVERGENCE: BLOCKED — 리뷰 결과가 PASS가 아닙니다.", 1);
-  }
+  const currentFingerprint = computeSourceFingerprint(planFile);
+  const review = validateReviewEvidence(plan, currentFingerprint || undefined);
+  if (!review.valid) fail(`CONVERGENCE: BLOCKED — ${review.reason}`, 1);
 
   const acRows = sectionInside(plan, /^## AC 판정$/).filter((line) => /^\| AC-[^|]+ \|/.test(line));
   if (acRows.length === 0) {
@@ -78,8 +91,6 @@ function run(args) {
   // 최신 PASS 증거의 소스 지문이 현재 지문과 일치하면 verify 재실행을 생략한다.
   // 불일치·확인불가 → BLOCKED (record-verification-evidence 재실행 요구).
   const latestFingerprint = extractLatestPassFingerprint(plan);
-  const currentFingerprint = computeSourceFingerprint(planFile);
-
   if (latestFingerprint && currentFingerprint && latestFingerprint === currentFingerprint) {
     process.stdout.write("=== 최신 PASS 증거 재사용 (소스 지문 일치 — verify 재실행 생략) ===\n");
   } else if (!currentFingerprint) {

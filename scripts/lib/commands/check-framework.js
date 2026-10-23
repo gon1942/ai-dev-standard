@@ -106,10 +106,10 @@ function run(args) {
 
   const envPath = path.join(projectDir, ".ai-dev-standard.env");
   if (fs.existsSync(envPath)) {
-    if (/^AI_DEV_STANDARD_MODE=(template|active)$/m.test(fs.readFileSync(envPath, "utf8"))) {
+    if (/^AI_DEV_STANDARD_MODE=(template|initializing|active)$/m.test(fs.readFileSync(envPath, "utf8"))) {
       process.stdout.write("PASS config: AI_DEV_STANDARD_MODE 설정됨\n");
     } else {
-      process.stdout.write("FAIL config: AI_DEV_STANDARD_MODE=template 또는 active 필요\n");
+      process.stdout.write("FAIL config: AI_DEV_STANDARD_MODE=template, initializing 또는 active 필요\n");
       missing = true;
     }
   }

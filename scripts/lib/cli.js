@@ -16,6 +16,8 @@ const commands = {
   "record-verification-evidence": "./commands/record-verification-evidence",
   "record-e2e-evidence": "./commands/record-e2e-evidence",
   "configure-e2e-profile": "./commands/configure-e2e-profile",
+  "configure-verification": "./commands/configure-verification",
+  "record-bootstrap-approval": "./commands/record-bootstrap-approval",
   "converge-plan": "./commands/converge-plan",
   "check-framework": "./commands/check-framework",
   "analyze-project": "./commands/analyze-project",

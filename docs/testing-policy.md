@@ -4,10 +4,22 @@
 
 ## 0. 검증 활성화
 
-템플릿 기본값은 `.ai-dev-standard.env`의 `template` 모드다. 이 상태의
-`verify.sh` 결과는 템플릿 실행 확인일 뿐 완료 증거가 아니다. 프로젝트 적용 시
-`active`로 전환하고 lint·test·필요한 typecheck를 필수 검사로 지정한다.
-필수 검사가 실행되지 않으면 `verify.sh`는 실패해야 한다.
+템플릿 기본값은 `.ai-dev-standard.env`의 `template` 모드다. 신규 프로젝트는 요청·분석으로
+기술 스택과 검증 명령을 정한 뒤 승인된 Exec Plan의 `## Bootstrap 검증 프로필`을 사용해
+`.ai-dev-standard/verification.json`을 구성한다. 구성 명령은 모든 필수 검사가 실제 통과한
+경우에만 `initializing`에서 `active`로 전환한다. 프로필을 사용하는 프로젝트에서는 언어별
+검증 명령이 검증 기준이며 ESLint를 보편 필수 조건으로 요구하지 않는다.
+
+기존 레거시 프로젝트처럼 검증 프로필이 없는 경우에는 `.ai-dev-standard.env`의
+`AI_DEV_STANDARD_REQUIRE_*`와 기존 lint/typecheck/test 탐지 규칙이 계속 적용된다.
+`template` 실행은 설정 상태 확인일 뿐 완료 증거가 아니며, `initializing` 검증 PASS도
+프로젝트 활성화만 허용할 뿐 기능 완료나 `READY_FOR_REVIEW` 증거가 아니다.
+
+검증 프로필은 `components`의 lint/typecheck/test/build/system 검사를 정의한다. 선택적인 최상위
+`setup` 배열은 Bootstrap 때만 실행할 설치·초기 설정 명령으로, 각 항목은 `id`, `command`, `args`,
+`cwd`, `required`를 가진다. 승인 지문 확인 후 `shell:false`로 실행하며 일반 Verify에서는 반복 실행하지
+않는다. 필수 setup 실패는 `initializing` 상태를 유지하고 검증 준비 PASS를 만들지 않는다.
+진행·실패·완료 단계와 재시도 이력은 `.ai-dev-standard/bootstrap-status.json`에 비밀정보 없이 보존한다.
 
 ## 1. 테스트 계층
 

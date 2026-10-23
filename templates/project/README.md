@@ -8,11 +8,15 @@
 2. 에이전트에게 프로젝트 목적, 기술 스택, 주요 사용자 흐름, 인증·데이터·검증 요구사항을 설명한다.
 3. 에이전트는 `docs/project-bootstrap.md`에 따라 `ARCHITECTURE.md`,
    `docs/design-docs/project-context.md`, `docs/project-constitution.md` 초안을 제안한다.
-4. 실제 lint·typecheck·test 명령을 확인하고 승인한 뒤 `.ai-dev-standard.env`를
-   `active` 모드로 전환한다.
+4. 사용자의 요청과 기존 프로젝트 신호로 기술 스택·검증 방식을 계획하고, Product Spec과
+   Exec Plan의 통합 사전 승인을 받는다. 도구 선택은 계획에 포함하며 ESLint를 일괄 설치하지 않는다.
+5. 신규 프로젝트는 승인 후 `node scripts/lib/cli.js record-bootstrap-approval <계획>`으로 승인 내용
+   지문을 기록하고, 승인된 `Bootstrap 검증 프로필`을 `scripts/configure-verification.sh <계획>`으로
+   구성·실행한다. 필수 setup 및 검사가 모두 통과해야 `active`로 전환된다.
 
-처음에는 `template` 모드이므로 Plan은 만들 수 있지만, 실제 검증 구성이 확정되기 전에는
-`READY_FOR_REVIEW`를 선언할 수 없다.
+처음에는 `template` 모드다. Preflight는 Plan, 초기화, 기능 Coding 권한을 분리한다.
+`initializing` 중에는 승인된 검증 명령만 실행하고 일반 기능 코딩은 하지 않는다. 프로필이 없는
+기존 프로젝트는 이전 lint/test 규칙을 호환해 사용한다.
 
 ## 작업 흐름
 

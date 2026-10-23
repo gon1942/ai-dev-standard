@@ -394,3 +394,82 @@ expect_crg_block '## CRG 탐색 기록
 - 원본 소스 교차 확인: scripts/a.js' "결과 반영 누락"
 
 echo 'PASS: crg record gate 6 branches'
+
+# ── Task Graph 깊이 조건부 의무 (일반·설계 필요 = 필수, 단순·미기재 = 선택) ──
+DEPTH_SPEC="docs/product-specs/${TOKEN}-depth.md"
+DEPTH_PLAN="docs/exec-plans/active/${TOKEN}-depth.md"
+cleanup() { rm -f "$SPEC" "$PLAN" "$BUG_SPEC" "$BUG_PLAN" "$TG_PLAN" "$CRG_PLAN" "$DEPTH_SPEC" "$DEPTH_PLAN"; }
+
+write_depth_fixture() {
+  cat > "$DEPTH_SPEC" <<EOF
+# Product Spec: depth gate fixture
+
+- 상태: approved
+- 깊이: $1
+
+## 완료 조건 (Acceptance Criteria)
+
+| ID | 완료 조건 | 기대 결과 |
+|---|---|---|
+| AC-01 | depth gate | PASS |
+EOF
+  cat > "$DEPTH_PLAN" <<EOF
+# Exec Plan: depth gate fixture
+
+- 상태: active
+- 승인: approved
+- 제품 명세: $DEPTH_SPEC
+
+## 구현 계획
+
+- 목적: depth gate
+- Task Graph 판별: 불필요 — fixture
+
+## 검증 계획
+
+| AC | 검증 방법 | 기대 증거 |
+|---|---|---|
+| AC-01 | shell test | exit 0 |
+
+## 회귀 검증 대상
+
+- validate-plan
+$2
+EOF
+}
+
+# 깊이 일반 + Task Graph 없음 → 차단
+write_depth_fixture "일반" ""
+if scripts/validate-plan.sh "$DEPTH_PLAN" >/dev/null 2>&1; then
+  echo 'FAIL: 깊이 일반 계획의 Task Graph 누락이 통과함' >&2
+  exit 1
+fi
+
+# 깊이 설계 필요 + Task Graph 없음 → 차단
+write_depth_fixture "설계 필요" ""
+if scripts/validate-plan.sh "$DEPTH_PLAN" >/dev/null 2>&1; then
+  echo 'FAIL: 깊이 설계 필요 계획의 Task Graph 누락이 통과함' >&2
+  exit 1
+fi
+
+# 깊이 일반(템플릿 주석 형태) + Task Graph 없음 → 차단 (주석 정규화 확인)
+write_depth_fixture "일반  (단순 | 일반 | 설계 필요)" ""
+if scripts/validate-plan.sh "$DEPTH_PLAN" >/dev/null 2>&1; then
+  echo 'FAIL: 깊이 일반(주석 형태) 계획의 Task Graph 누락이 통과함' >&2
+  exit 1
+fi
+
+# 깊이 단순 + 없음 → 통과 (종전 동작)
+write_depth_fixture "단순" ""
+scripts/validate-plan.sh "$DEPTH_PLAN" >/dev/null
+
+# 깊이 일반 + Task Graph 있음 → 통과
+write_depth_fixture "일반" '
+## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | — | a.js | 구현 전 |'
+scripts/validate-plan.sh "$DEPTH_PLAN" >/dev/null
+
+echo 'PASS: task graph depth gate 5 branches'

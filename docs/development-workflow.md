@@ -8,8 +8,9 @@
 
 1. **지침의 진실 공급원은 `docs/`** — AGENTS.md, CLAUDE.md, 각 도구 스킬은
    얇은 어댑터일 뿐 규칙을 복제하지 않는다.
-2. **검증 실행·기록 진입점은 `node scripts/lib/cli.js record-verification-evidence <실행계획>`** — 공통 검증
-   (`verify-plan` → `verify`: lint·typecheck·test)을 직접 실행하고 안전한 실행 증거를 계획에 남긴다.
+2. **검증 실행·기록 진입점은 `node scripts/lib/cli.js record-verification-evidence <실행계획>`** — 승인된
+   검증 프로필(또는 프로필이 없는 레거시 프로젝트의 기존 lint·typecheck·test 설정)을 실행하고
+   안전한 실행 증거를 계획에 남긴다.
    기본 `verify-plan`과 `converge-plan`은 읽기 전용이며, `.sh`는 Unix 편의 shim이다.
 3. **AI의 완료 선언 ≠ 기능 완료** — AI는 `READY_FOR_REVIEW`까지만 선언한다.
    완료(`DONE`)는 검증 증거 + 사람 승인으로만 결정된다.
@@ -65,7 +66,7 @@
    │
    ▼
 ① Session Preflight 상태 확인 — 세션 시작에 `scripts/session-preflight.sh --start`, 작업 요청에는 `--status`
-   │       PASS·WARNING: Plan 가능 / Coding은 can_code 값(active 모드이고 BLOCK이 아님)으로 판정 / BLOCK·무효: 중단·재검사
+   │       PASS·WARNING: can_plan·can_initialize·can_code 권한별 진행 / BLOCK·무효: 중단·재검사
    ▼
 ② 요구사항 분석 — 필요 시 그릴링 후 완료 조건(Acceptance Criteria) 표 작성
    │
@@ -78,36 +79,40 @@
    ▼
 ⑤ 통합 사전 승인 — Product Spec + Exec Plan을 함께 한 번 승인 요청
        승인 시 두 문서에 같은 묶음 ID·결정자·일자를 기록
+       Bootstrap 검증 프로필이 있으면 `record-bootstrap-approval`로 문서 지문 기록
        `scripts/validate-plan.sh <실행계획파일>` 통과 필요
    │
    ▼
-⑥ 구현 — standard-implement 계약 따름
+⑥ 필요 시 Bootstrap 검증 환경 구성 — 승인 지문 확인 후 setup과 검증 프로필을 initializing에서 실행
+   │       모든 필수 명령 PASS 후에만 active 전환; 개별 도구(예: ESLint)는 보편 필수 아님
+   ▼
+⑦ 구현 — standard-implement 계약 따름
    │       (계획 범위 내 최소 diff, 기존 동작 유지)
    ▼
-⑦ 검증 — standard-verify 계약과 `node scripts/lib/cli.js record-verification-evidence <실행계획파일>` 실행
-        (공통 lint + typecheck + test 후, 플랜의 검증 계획·회귀 대상 확인.
+⑧ 검증 — standard-verify 계약과 `node scripts/lib/cli.js record-verification-evidence <실행계획파일>` 실행
+        (승인 검증 프로필 또는 레거시 필수 검사를 실행한 뒤, 플랜의 검증 계획·회귀 대상 확인.
          검증 방법이 UAT로 지정된 AC는 standard-uat 계약을 함께 수행)
    │       실행 시각·명령·종료 코드·소스 상태는 자동 기록한다. AC 의미 판정·리뷰·승인은
    │       자동화하지 않는다. E2E가 필요하면 `record-e2e-evidence` 또는 수동 UAT 증거를
    │       추가한다. 실패 시 수정 후 재실행 (원인 분석 없는 재시도 금지)
    ▼
-⑧ 독립 리뷰 — standard-review 계약 또는 사람 리뷰
+⑨ 독립 리뷰 — standard-review 계약 또는 사람 리뷰
    │
    ▼
-⑨ 최종 수렴 판정 — `scripts/converge-plan.sh <실행계획>`
+⑩ 최종 수렴 판정 — `scripts/converge-plan.sh <실행계획>`
        (AC PASS + 검증 증거 + 리뷰 PASS 확인, 실패 시 구현/검증으로 복귀)
    │
    ▼
-⑩ 완료 기록 작성 — 실행 계획 파일에 완료 기록·AC 판정 추가
+⑪ 완료 기록 작성 — 실행 계획 파일에 완료 기록·AC 판정 추가
    │
    ▼
-⑪ Pull Request — 실행 계획과 리뷰 결과를 함께 제출
+⑫ Pull Request — 실행 계획과 리뷰 결과를 함께 제출
    │
    ▼
-⑫ 리뷰 후 사람 완료 승인 → 머지 → 실행 계획을 `completed/`로 이동
+⑬ 리뷰 후 사람 완료 승인 → 머지 → 실행 계획을 `completed/`로 이동
    │
    ▼
-⑬ 선택적 회고 — 반복 문제는 `docs/agent-improvements/candidates/`에 후보로 기록
+⑭ 선택적 회고 — 반복 문제는 `docs/agent-improvements/candidates/`에 후보로 기록
 ```
 
 사람 승인·보류·수정 요청의 공통 선택과 기록 방식은

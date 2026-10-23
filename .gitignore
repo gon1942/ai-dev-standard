@@ -24,6 +24,8 @@ __pycache__/
 .opencode/plan.md.*
 .claude/local/
 .ai-dev-standard/session-preflight.json
+.ai-dev-standard/verification-ready.json
+.ai-dev-standard/bootstrap-status.json
 
 # Session Preflight·온보딩이 다시 만들 수 있는 로컬 보고서
 docs/generated/project-preflight.md

@@ -6,7 +6,8 @@
 
 ## Required actions
 
-- `node scripts/lib/cli.js record-verification-evidence <계획>`으로 lint, typecheck, test를 직접 실행하고
+- `node scripts/lib/cli.js record-verification-evidence <계획>`으로 승인된 검증 프로필의 필수 검사
+  (또는 프로필이 없는 레거시 프로젝트의 필수 lint/typecheck/test)를 직접 실행하고
   종료 코드·실행 시각·현재 소스 상태의 기계적 증거를 남긴다.
 - 기본 `scripts/verify-plan.sh <계획>`은 읽기 전용 진입점이다. 자동 증거 기록은 전용 명령에서만
   수행하며, 기록 명령이 PASS여도 AC·리뷰·상태·사람 승인은 바꾸지 않는다.
@@ -56,6 +57,12 @@
 ## Exit conditions / next stage
 
 - 모든 필수 검증과 AC가 PASS면 `standard-review`로 진행한다.
+- 모든 AC 판정이 완료되면 에이전트는 중간 보고 후 사용자 확인을 기다리지 않고
+  즉시 독립 리뷰(standard-review)를 수행한다. 검증과 리뷰 사이에 사람 개입점은
+  없으며, 다음 사람 개입점은 변경 사항 검토(완료 승인)다.
+- 미검증·실패 AC가 있으면 "검증 완료"로 보고하지 않는다. 보고는 다음을 구분해
+  제시한다: ① 통과한 항목과 증거 ② 남은 AC 목록과 확인 방법 ③ 다음 조치
+  (재실행·수정·보류).
 - FAIL/BLOCKED/미검증이면 Review로 진행하지 않고 원인에 따라 Implement 또는 Verify로 돌아간다.
   이때 `docs/testing-policy.md`의 회귀 방침에 따라 기존 결함(변경 전에도 실패)과
   이번 변경의 결함을 구분해 완료 기록에 남긴다.

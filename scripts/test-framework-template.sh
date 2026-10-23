@@ -29,8 +29,10 @@ for path in \
   CONTRIBUTING.md \
   README.md \
   docs/framework-manifest.md \
+  docs/project-bootstrap.md \
   docs/project-constitution.md \
   docs/skill-contracts/standard-plan.md \
+  docs/skill-contracts/standard-human-decision.md \
   docs/generated/README.md \
   docs/references/README.md \
   .opencode/agents/reviewer.md \
@@ -59,6 +61,12 @@ done
 
 grep -Fq 'Session Preflight' "$TARGET/docs/development-workflow.md" || fail '축약된 workflow 문서가 배포되었습니다'
 grep -Fq '공통 개발 프레임워크가 적용되어 있다' "$TARGET/README.md" || fail '프로젝트용 README가 없습니다'
+grep -Fq '빈 프로젝트에서 사용자가 “로그인 페이지를 만들어줘”' "$TARGET/docs/project-bootstrap.md" || \
+  fail '빈 프로젝트에서 스택 미지정 시 확인/제안 규칙이 배포되지 않았습니다'
+grep -Fq 'record-bootstrap-approval' "$TARGET/docs/skill-contracts/standard-human-decision.md" || \
+  fail 'Bootstrap 승인 내용 지문 절차가 배포되지 않았습니다'
+grep -Fq 'bootstrap-status.json' "$TARGET/docs/session-preflight.md" || \
+  fail 'Bootstrap 재개 상태 안내가 배포되지 않았습니다'
 grep -Fq '전환 누락: <건수 또는 없음>' "$TARGET/docs/development-workflow.md" || \
   fail '배포 템플릿에 상태 보고 분류가 없습니다'
 grep -Fq '`승인 대기`는 `work-status`에서 `READY_FOR_REVIEW`로 분류된 계획만 의미한다' \

@@ -35,6 +35,7 @@ cat > "$PLAN_FILE" <<EOF
 - 상태: active
 - 승인: pending
 - 검증 계약 버전: 2
+- 리뷰 계약 버전: 1
 - 제품 명세: ${SPEC_FILE}
 $(if [ -n "$PREAPPROVAL_ID" ]; then printf '%s\n' "- 사전 승인 묶음: ${PREAPPROVAL_ID}" '- 승인 결정자: pending' '- 승인 일자: pending'; fi)
 - 생성: ${DATE}, 담당: <이름/도구>

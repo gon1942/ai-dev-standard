@@ -31,6 +31,10 @@ node scripts/lib/cli.js suggest-tools --install
 
 ## 4. 결과 보고
 
+Preflight가 `initializing`이면 `.ai-dev-standard/bootstrap-status.json`의 마지막 단계,
+현재/실패 setup 작업, 완료된 setup 및 재시도 횟수를 읽어 재개 지점을 보고한다. 사용자가 설치를
+거부한 경우 초기화/설치 명령을 실행하지 않는다.
+
 ```
 세션 상태
 - Preflight: PASS/WARNING/BLOCK

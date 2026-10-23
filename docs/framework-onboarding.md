@@ -47,9 +47,10 @@
 
 빈 저장소에서는 `--init`으로 문서·스크립트·디렉터리의 최소 골격을 만들 수 있다. 이후 에이전트가
 사용자에게 프로젝트 목적, 주요 사용자 흐름, 기술 스택, 데이터·인증, 검증 방식을 질문한다. 답변을
-바탕으로 `ARCHITECTURE.md`와 `docs/design-docs/project-context.md` 초안을 만들고, 실제 lint/test
-명령 변경안을 제안한다. `.ai-dev-standard.env`는 처음에는 `template` 모드이며, 실제 lint/test 명령을
-승인 후 연결한 뒤에만 `active`로 전환한다.
+바탕으로 `ARCHITECTURE.md`와 `docs/design-docs/project-context.md` 초안을 만든다. 검증 환경은
+사용자 요청에 적합한 스택과 구성요소별 필수 명령을 Exec Plan에 포함해 통합 사전 승인받는다.
+승인된 `Bootstrap 검증 프로필`을 `configure-verification`으로 실행하고 필수 검사가 모두 통과해야
+`active`로 전환한다. ESLint는 Node 프로젝트에서도 유일한 선택지가 아니며 전 언어 공통 전제조건이 아니다.
 
 ## 기존 프로젝트
 

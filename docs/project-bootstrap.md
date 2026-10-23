@@ -21,8 +21,23 @@
    - `docs/design-docs/project-context.md`: 목적, 사용자, 핵심 흐름, 도메인 용어, 제외 범위
    - `docs/project-constitution.md`: 고위험 변경 경계·아키텍처 불변 조건·규제·인증·프라이버시·검증 수준·안티골
    - `.ai-dev-standard.env`와 검증 스크립트: 실제 명령은 승인·실행 확인 뒤에만 연결
-5. 신규 파일 생성 또는 기존 파일 diff를 사용자에게 보여주고 승인을 받는다.
-6. 승인 범위만 반영하고, `scripts/check-framework.sh --project-dir <대상>`으로 골격을 확인한다.
+5. Product Spec과 Exec Plan에 기술 스택, 각 구성요소의 필수 검증 명령(언어에 맞는 lint,
+   typecheck, test, build 또는 system check), AC별 검증 방법을 포함해 통합 사전 승인을 받는다.
+6. 승인 응답 후 `node scripts/lib/cli.js record-bootstrap-approval <계획>`으로 Product Spec과
+   Exec Plan의 승인 내용 지문을 기록한다. 승인 문서 내용이 바뀌면 이 지문이 불일치하므로
+   수정된 문서 쌍을 다시 승인받는다. 지문을 새로 기록하는 것은 사람 승인을 대체하지 않는다.
+7. 승인된 계획에 `## Bootstrap 검증 프로필`을 포함하고 `scripts/configure-verification.sh
+   <계획>`으로 구성한다. 초기화 `setup` 명령과 검사 명령은 승인된 프로필에 선언되며,
+   설정 실행기는 `command`와 `args`를 셸 없이 실행한다.
+   모든 필수 setup 및 검사 명령이 통과하기 전에는 `active`로 바꾸지 않는다. 사용자는 ESLint 같은 개별 도구를
+   별도로 고르지 않는다. 승인 범위에 필요한 의존성 설치가 있으면 해당 설치와 영향도 계획에 명시한다.
+8. 승인 범위만 반영하고, `scripts/check-framework.sh --project-dir <대상>`으로 골격을 확인한다.
+
+설치가 승인 범위에서 거부되면 해당 setup 명령을 실행하지 않고 `template` 상태를 유지한다.
+명령 실패나 부분 설치가 발생하면 `initializing` 상태에 남기고 Preflight에서 원인과 재시도/보완
+조치를 확인한다. setup 명령은 성공적으로 Bootstrap을 마친 뒤 일반 Verify에서 반복 실행하지 않는다.
+`.ai-dev-standard/bootstrap-status.json`은 로컬 전용 재개 상태이며 Git에 커밋하지 않는다. 재시도는
+횟수와 이전 실패 작업/종료 코드를 보존한다.
 
 ## 질문 기준
 
@@ -36,6 +51,11 @@
 - 고위험 변경 경계와 아키텍처 불변 조건
 - 규제·컴플라이언스 요건과 데이터·프라이버시 정책
 - 안티골 — 기술적으로 가능해도 하지 않을 것
+
+예를 들어 빈 프로젝트에서 사용자가 “로그인 페이지를 만들어줘”라고만 요청하면 언어나 프레임워크를
+사실처럼 가정하지 않는다. 먼저 필요한 경우 사용 목적·배포 환경을 질문하고, 진행 가능한 기본안을
+선택지와 영향(의존성·검증 도구 포함)으로 제안한다. 선택은 Product Spec/Exec Plan에 기록하고
+통합 사전 승인 뒤에만 초기화한다.
 
 ## 산출물 상태
 

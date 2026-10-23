@@ -5,6 +5,11 @@
 - 승인된 Product Spec과 Exec Plan이 있다.
 - `scripts/validate-plan.sh <계획>`이 통과한다.
 - Session Preflight가 `can_code=true`다.
+- 신규 프로젝트 검증 환경 구성 중에는 기능 구현을 시작하지 않는다. 승인된 계획에 따른
+  `configure-verification` 실행이 필수 검사 PASS 후 `active` 전환을 완료해야 한다.
+- 초기화 작업이 승인된 Bootstrap Plan에 있으면 먼저 `record-bootstrap-approval`의 내용 지문이
+  일치하는지 확인하고 `configure-verification`으로 setup과 초기 검증을 실행한다. setup을 사용자가
+  거부하면 실행하지 않으며, 실패하면 initializing에서 멈춰 원인·복구 방안을 보고한다.
 
 ## Required actions
 

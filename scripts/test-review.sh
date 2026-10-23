@@ -56,3 +56,68 @@ printf '%s\n' "$PLAN_OUTPUT" | grep -Fq '[결과·검증] AC 판정 1/1 PASS · 
 }
 
 echo 'PASS: review checklist handles a missing comparison base and summarizes automatic evidence'
+
+# Review packet must use the current HEAD baseline and include all tracked and untracked changes.
+PACKET_ROOT="$(mktemp -d)"
+PACKET_OUTPUT="${PACKET_ROOT}.out"
+trap 'rm -f "$PLAN" "$PACKET_OUTPUT"; rm -rf "$PACKET_ROOT"' EXIT
+mkdir -p "$PACKET_ROOT/docs/exec-plans/active" "$PACKET_ROOT/docs/product-specs"
+git -C "$PACKET_ROOT" init -q
+git -C "$PACKET_ROOT" config user.email review-test@example.invalid
+git -C "$PACKET_ROOT" config user.name review-test
+printf 'baseline\n' > "$PACKET_ROOT/tracked-worktree.txt"
+printf 'baseline\n' > "$PACKET_ROOT/tracked-staged.txt"
+cat > "$PACKET_ROOT/docs/product-specs/spec.md" <<'EOF'
+# Product Spec: review packet fixture
+
+## 완료 조건
+
+| ID | 완료 조건 |
+|---|---|
+| AC-01 | fixture |
+EOF
+cat > "$PACKET_ROOT/docs/exec-plans/active/plan.md" <<'EOF'
+# Exec Plan: review packet fixture
+
+- 제품 명세: docs/product-specs/spec.md
+- 목적: review packet reports exact change scope
+
+## AC 판정
+
+| AC | 판정 | 증거 |
+|---|---|---|
+| AC-01 | PASS | fixture evidence |
+
+## 자동 검증 증거
+
+### 실행 2026-10-23T00:00:00.000Z
+- 종료 코드: 0
+- 결과 요약: PASS (fixture)
+EOF
+git -C "$PACKET_ROOT" add .
+git -C "$PACKET_ROOT" commit -qm 'fixture baseline'
+printf 'changed\n' > "$PACKET_ROOT/tracked-worktree.txt"
+printf 'staged change\n' > "$PACKET_ROOT/tracked-staged.txt"
+git -C "$PACKET_ROOT" add tracked-staged.txt
+printf 'new file\n' > "$PACKET_ROOT/untracked-review.txt"
+AI_DEV_STANDARD_ROOT="$PACKET_ROOT" node "$ROOT/scripts/lib/cli.js" review \
+  --plan docs/exec-plans/active/plan.md > "$PACKET_OUTPUT" 2>&1
+for expected in \
+  '[리뷰 기준] HEAD' \
+  'tracked-worktree.txt' \
+  'tracked-staged.txt' \
+  'untracked-review.txt' \
+  'docs/product-specs/spec.md' \
+  '[검증 재실행] Review 자료 준비는 테스트·검증 명령을 실행하지 않음'; do
+  grep -Fq "$expected" "$PACKET_OUTPUT" || {
+    echo "FAIL: Review packet is missing: $expected" >&2
+    cat "$PACKET_OUTPUT" >&2
+    exit 1
+  }
+done
+grep -Fq 'HEAD~1' "$PACKET_OUTPUT" && {
+  echo 'FAIL: default review base must be current HEAD, not the preceding commit' >&2
+  exit 1
+}
+
+echo 'PASS: review packet includes plan, spec, staged, unstaged, and untracked scope without rerunning verification'

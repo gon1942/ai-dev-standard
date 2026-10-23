@@ -85,7 +85,26 @@ if grep -Eq '(^|[[:space:]])\.\.\.' "$PLAN_FILE"; then
 fi
 
 # Task Graph (선택 섹션) — 데이터 행이 없으면 검증을 생략한다.
+# 단, 명세 깊이가 일반·설계 필요면 Task Graph 데이터 행이 필수다 (조건부 의무).
 # 오류 메시지는 Node 구현(scripts/lib/commands/validate-plan.js)과 바이트 동치여야 한다.
+# 템플릿 주석 형태("일반  (단순 | 일반 | 설계 필요)")도 동일 취급 — 괄호 주석 제거 후 좌우 공백 정규화.
+SPEC_DEPTH="$(sed -n 's/^- 깊이: //p' "$SPEC_FILE" | head -n 1 | sed 's/(.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+TG_ROW_COUNT="$(awk '
+  /^## Task Graph$/{inside=1; next} /^## /{inside=0}
+  inside && /^\|/ {
+    n=split($0, raw, "|")
+    id=raw[2]
+    gsub(/^[ \t]+|[ \t]+$/, "", id)
+    if (id == "" || id == "Task") next
+    if (id ~ /^[-: ]*$/) next
+    cnt++
+  }
+  END { print cnt + 0 }
+' "$PLAN_FILE")"
+if [ "$TG_ROW_COUNT" -eq 0 ] && { [ "$SPEC_DEPTH" = "일반" ] || [ "$SPEC_DEPTH" = "설계 필요" ]; }; then
+  echo "깊이 ${SPEC_DEPTH} 계획에는 '## Task Graph' 섹션(데이터 행 1개 이상)이 필요합니다." >&2
+  exit 2
+fi
 TASK_GRAPH_ERROR="$(awk '
 function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
 /^## Task Graph$/{inside=1; next} /^## /{inside=0}

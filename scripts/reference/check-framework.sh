@@ -100,10 +100,10 @@ for dir in "${requiredDirs[@]}"; do
 done
 
 if [ -f "$PROJECT_DIR/.ai-dev-standard.env" ]; then
-  if grep -Eq '^AI_DEV_STANDARD_MODE=(template|active)$' "$PROJECT_DIR/.ai-dev-standard.env"; then
+  if grep -Eq '^AI_DEV_STANDARD_MODE=(template|initializing|active)$' "$PROJECT_DIR/.ai-dev-standard.env"; then
     echo "PASS config: AI_DEV_STANDARD_MODE 설정됨"
   else
-    echo "FAIL config: AI_DEV_STANDARD_MODE=template 또는 active 필요"
+    echo "FAIL config: AI_DEV_STANDARD_MODE=template, initializing 또는 active 필요"
     missing=1
   fi
 fi

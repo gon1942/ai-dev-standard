@@ -6,6 +6,7 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { ROOT, sectionInside } = require("../util");
+const { computeSourceFingerprint } = require("../evidence");
 const {
   parseDecision,
   isManualUat,
@@ -19,6 +20,8 @@ function extractPlanSummary(planPath) {
   const plan = fs.readFileSync(abs, "utf8");
   const purposeMatch = plan.match(/^- 목적: (.+)$/m);
   const purpose = purposeMatch ? purposeMatch[1] : "(계획에 목적 미기입)";
+  const specMatch = plan.match(/^- 제품 명세: (.+)$/m);
+  const specPath = specMatch ? specMatch[1].trim() : "(계획에 명세 경로 없음)";
   const acRows = sectionInside(plan, /^## AC 판정$/).filter((line) => /^\| AC-[^|]+ \|/.test(line));
   const acTotal = acRows.length;
   const acPass = acRows.filter((row) => /^\| AC-[^|]+ \| PASS \| .+ \|$/.test(row)).length;
@@ -49,7 +52,30 @@ function extractPlanSummary(planPath) {
   } else if (!e2e.legacy) {
     e2eLine = `E2E 판정: ${e2e.method} — ${automaticE2eEvidenceIsPass(plan) ? "PASS" : "미검증"}`;
   }
-  return { purpose, acTotal, acPass, verifyLine, e2eLine };
+  return { purpose, specPath, acTotal, acPass, verifyLine, e2eLine };
+}
+
+function changedPaths(base, baseAvailable) {
+  const paths = new Map();
+  if (baseAvailable) {
+    const diff = spawnSync("git", ["diff", "--name-status", base], { cwd: ROOT, encoding: "utf8" });
+    for (const line of (diff.stdout || "").split("\n")) {
+      if (!line.trim()) continue;
+      const [status, ...parts] = line.split("\t");
+      paths.set(parts.join("\t"), status || "M");
+    }
+  }
+  const status = spawnSync("git", ["status", "--short", "--untracked-files=all", "-z"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  const entries = (status.stdout || "").split("\0").filter(Boolean);
+  for (const entry of entries) {
+    const code = entry.slice(0, 2);
+    const file = entry.slice(3);
+    if (file) paths.set(file, code.trim() || "??");
+  }
+  return [...paths.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
 function run(args) {
@@ -68,7 +94,7 @@ function run(args) {
       base = args[i];
     }
   }
-  if (base === null) base = "HEAD~1";
+  if (base === null) base = "HEAD";
 
   const verify = spawnSync("git", ["rev-parse", "--verify", "--quiet", `${base}^{commit}`], { cwd: ROOT });
   const baseAvailable = verify.status === 0;
@@ -82,26 +108,25 @@ function run(args) {
       process.stderr.write(`실행 계획 파일을 찾을 수 없습니다: ${planArg}\n`);
       process.exit(2);
     }
-    let changedCount = -1;
-    if (baseAvailable) {
-      const list = spawnSync("git", ["diff", "--name-only", base], { cwd: ROOT, encoding: "utf8" });
-      changedCount = (list.stdout || "").split("\n").filter((l) => l.trim() !== "").length;
-    }
-    write("=== 작업 요약 ===");
+    const changes = changedPaths(base, baseAvailable);
+    const sourceFingerprint = computeSourceFingerprint(planArg);
+    write("=== Review Packet ===");
     write(`[목적] ${summary.purpose}`);
-    if (changedCount >= 0) {
-      write(`[내용] 변경 파일 ${changedCount}건 — 상세는 아래 diff stat 참조`);
-    } else {
-      write("[내용] git 비교 기준 없음 — 작업 트리 확인 필요");
-    }
+    write(`[제품 명세] ${summary.specPath}`);
+    write(`[리뷰 기준] ${baseAvailable ? base : "Git 기준점 확인 불가"}`);
+    write(`[검토 지문] ${sourceFingerprint || "확인 불가"}`);
+    write(`[변경 파일] ${changes.length}건`);
+    if (changes.length === 0) write(" (변경 파일 없음)");
+    for (const [file, status] of changes) write(` ${status.padEnd(2)} ${file}`);
     const acPart =
       summary.acTotal === 0 ? "AC 판정 없음" : `AC 판정 ${summary.acPass}/${summary.acTotal} PASS`;
     write(`[결과·검증] ${acPart} · ${summary.verifyLine}`);
     write(`[E2E] ${summary.e2eLine}`);
+    write("[검증 재실행] Review 자료 준비는 테스트·검증 명령을 실행하지 않음");
     write("");
   }
 
-  write(`=== 독립 리뷰 체크리스트 (base: ${baseLabel}) ===`);
+  write(`=== 독립 리뷰 절차 (base: ${baseLabel}) ===`);
   write("");
   write(`[Standards Review] git diff ${base} 대상으로 점검한다:`);
   write("");
@@ -135,9 +160,9 @@ function run(args) {
     write("(git 비교 기준이 없거나 base가 무효함 — git status --short와 현재 작업 트리를 검토하세요)");
   }
   write("");
-  write("# PLACEHOLDER: 여기에 두 관점의 독립 리뷰 에이전트 호출을 연결한다.");
-  write('# 예) claude -p "$(git diff <base>) 를 위 체크리스트로 리뷰해라"');
-  write('# 예) opencode run -a reviewer "..."');
+  write("독립 리뷰어는 Product Spec·Exec Plan·위 변경 범위·검증 증거만 근거로 검토하고, 구현 세션 대화는 전달하지 않는다.");
+  write("기본은 단일 리뷰어가 Standards / Spec / Evidence를 한 번씩 검토한다. 별도 병렬 리뷰는 계획에 사유가 있을 때만 사용한다.");
+  write("검증 증거가 최신이면 재실행하지 않는다. 소스 변경이나 증거 문제가 확인될 때만 Verify로 되돌린다.");
 }
 
-module.exports = { run };
+module.exports = { run, changedPaths, extractPlanSummary };

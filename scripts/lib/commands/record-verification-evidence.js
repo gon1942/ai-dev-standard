@@ -7,6 +7,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 const { ROOT, appendSectionEntry } = require("../util");
 const { resolveActivePlan, sourceState, computeSourceFingerprint } = require("../evidence");
+const { loadVerificationProfile, writeVerificationReadiness } = require("../verification");
 
 const CLI = path.resolve(__dirname, "..", "cli.js");
 
@@ -51,7 +52,15 @@ function run(args) {
     cwd: ROOT,
     stdio: "inherit",
   });
-  const exitCode = typeof verify.status === "number" ? verify.status : 1;
+  let exitCode = typeof verify.status === "number" ? verify.status : 1;
+
+  if (exitCode === 0) {
+    const profile = loadVerificationProfile(ROOT);
+    if (profile.status === "ok" && !writeVerificationReadiness(ROOT, profile.profile, planFile)) {
+      process.stderr.write("검증 준비 상태 기록 실패\n");
+      exitCode = 1;
+    }
+  }
 
   try {
     appendEvidence(planAbs, planFile, exitCode, state);
@@ -61,7 +70,7 @@ function run(args) {
   }
 
   process.stdout.write(
-    `검증 증거 기록: ${planFile} (${exitCode === 0 ? "PASS" : `FAIL, 종료 코드 ${exitCode}`})\n`
+    `검증 증거 기록: ${planFile} (${exitCode === 0 ? "PASS — 다음: AC 판정 기록 후 독립 Review" : `FAIL, 종료 코드 ${exitCode} — 수정 후 재실행`})\n`
   );
   process.exit(exitCode);
 }

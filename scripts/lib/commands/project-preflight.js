@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { spawnSync } = require("child_process");
+const { isVerificationReady, loadVerificationProfile } = require("../verification");
 
 const FRAMEWORK_ROOT = process.env.AI_DEV_STANDARD_FRAMEWORK_ROOT
   ? path.resolve(process.env.AI_DEV_STANDARD_FRAMEWORK_ROOT)
@@ -47,8 +48,11 @@ function sha256File(filePath) {
 
 function sessionFingerprint(projectDir) {
   const paths = [
-    "AGENTS.md", "CLAUDE.md", ".ai-dev-standard.env", "package.json", "pyproject.toml",
-    "go.mod", "Cargo.toml", "scripts/verify.sh", "scripts/lint.sh", "scripts/test.sh",
+    "AGENTS.md", "CLAUDE.md", ".ai-dev-standard.env", ".ai-dev-standard/verification.json",
+    ".ai-dev-standard/verification-ready.json", ".ai-dev-standard/bootstrap-status.json",
+    "package.json", "package-lock.json", "pnpm-lock.yaml",
+    "yarn.lock", "pyproject.toml", "requirements.txt", "go.mod", "go.sum", "Cargo.toml", "Cargo.lock",
+    "pom.xml", "build.gradle", "build.gradle.kts", "scripts/verify.sh", "scripts/lint.sh", "scripts/test.sh",
     "scripts/verify-plan.sh", "docs/development-workflow.md", "docs/project-preflight.md",
     "docs/framework-runtime-assets.tsv",
   ];
@@ -100,14 +104,14 @@ function run(args) {
   const sessionFile = path.join(projectDir, ".ai-dev-standard", "session-preflight.json");
   if (sessionStatus) {
     if (!fs.existsSync(sessionFile)) {
-      process.stdout.write('{"session_status":"missing","can_plan":false,"can_code":false}\n');
+      process.stdout.write('{"session_status":"missing","can_plan":false,"can_initialize":false,"can_code":false,"verification_ready":false}\n');
       process.exit(2);
     }
     const current = sessionFingerprint(projectDir);
     const stored =
       (fs.readFileSync(sessionFile, "utf8").match(/^\s*"fingerprint": "([^"]*)".*/m) || [])[1] || "";
     if (!stored || current !== stored) {
-      process.stdout.write('{"session_status":"stale","can_plan":false,"can_code":false}\n');
+      process.stdout.write('{"session_status":"stale","can_plan":false,"can_initialize":false,"can_code":false,"verification_ready":false}\n');
       process.exit(2);
     }
     process.stdout.write(fs.readFileSync(sessionFile, "utf8"));
@@ -126,8 +130,11 @@ function run(args) {
   let requireTest = "";
   let canPlan = false;
   let canCode = false;
+  let canInitialize = false;
+  let verificationReady = false;
 
   const hasFile = (p) => fs.existsSync(path.join(projectDir, p));
+  const hasDir = (p) => fs.existsSync(path.join(projectDir, p)) && fs.statSync(path.join(projectDir, p)).isDirectory();
 
   const runFrameworkScript = (script, scriptArgs) =>
     spawnSync("bash", [path.join(FRAMEWORK_ROOT, "scripts", script), ...scriptArgs], {
@@ -192,7 +199,10 @@ function run(args) {
   }
   if (hasFile("go.mod")) stack.push("Go");
   if (hasFile("Cargo.toml")) stack.push("Rust");
+  if (hasFile("pom.xml") || hasFile("build.gradle") || hasFile("build.gradle.kts") || hasFile("mvnw") || hasFile("gradlew")) stack.push("Java/JVM");
   if (hasFile("Dockerfile")) stack.push("Docker");
+  if (hasFile(".shellcheckrc") || ["src", "bin", "ops"].some((dir) => hasDir(dir) && fs.readdirSync(path.join(projectDir, dir)).some((name) => name.endsWith(".sh")))) stack.push("Shell");
+  if (["systemd", "deploy/systemd"].some(hasDir)) stack.push("System service");
   if (stack.length === 0) {
     stack.push("판별 불가");
     warnings.push("기술 스택 신호가 없어 프로젝트별 명령·템플릿 생성을 추정하지 않음");
@@ -202,8 +212,9 @@ function run(args) {
     const envLines = fs.readFileSync(path.join(projectDir, ".ai-dev-standard.env"), "utf8").split("\n");
     const modeLines = envLines.filter((l) => /^AI_DEV_STANDARD_MODE=/.test(l));
     mode = modeLines.length ? modeLines[modeLines.length - 1].replace(/^AI_DEV_STANDARD_MODE=/, "") : "";
-    if (mode === "active") { checks.push("검증 모드: active"); canCode = true; }
-    else if (mode === "template") warnings.push("검증 모드가 template: Plan은 가능하지만 Coding/READY_FOR_REVIEW는 차단");
+    if (mode === "active") checks.push("검증 모드: active");
+    else if (mode === "template") warnings.push("검증 모드가 template: Bootstrap/Plan은 가능하지만 기능 Coding/READY_FOR_REVIEW는 차단");
+    else if (mode === "initializing") warnings.push("검증 모드가 initializing: 승인된 초기 설정만 가능하며 기능 Coding/READY_FOR_REVIEW는 차단");
     else blocks.push(".ai-dev-standard.env의 AI_DEV_STANDARD_MODE 값이 유효하지 않음");
     for (const key of ["AI_DEV_STANDARD_REQUIRE_LINT", "AI_DEV_STANDARD_REQUIRE_TYPECHECK", "AI_DEV_STANDARD_REQUIRE_TEST"]) {
       const keyLines = envLines.filter((l) => l.startsWith(`${key}=`));
@@ -216,6 +227,17 @@ function run(args) {
     }
   }
 
+  const verificationProfile = loadVerificationProfile(projectDir);
+  if (verificationProfile.status === "invalid") {
+    blocks.push(`검증 프로필 오류: ${verificationProfile.message}`);
+  } else if (verificationProfile.status === "ok") {
+    const readiness = isVerificationReady(projectDir);
+    verificationReady = readiness.ready;
+    checks.push("검증 프로필: 유효");
+    if (verificationReady) checks.push("검증 준비 증거: 최신");
+    else warnings.push(`검증 준비 증거 없음 또는 오래됨: ${readiness.reason}`);
+  }
+
   for (const document of ["AGENTS.md", "ARCHITECTURE.md", "docs/development-workflow.md", "docs/definition-of-done.md", "docs/testing-policy.md"]) {
     const documentPath = path.join(projectDir, document);
     if (fs.existsSync(documentPath) && !/\S/.test(fs.readFileSync(documentPath, "utf8"))) {
@@ -223,13 +245,13 @@ function run(args) {
     }
   }
 
-  if (mode === "active" && requireLint === "true") {
+  if (mode === "active" && verificationProfile.status === "missing" && requireLint === "true") {
     if (!hasFile(".eslintrc.json") && !hasFile("eslint.config.js") && !hasFile("eslint.config.mjs")
       && !hasFile("pyproject.toml") && !hasFile(".ruff.toml")) {
       blocks.push("active 모드에서 필수 lint가 설정됐지만 감지 가능한 lint 구성이 없음");
     }
   }
-  if (mode === "active" && requireTest === "true") {
+  if (mode === "active" && verificationProfile.status === "missing" && requireTest === "true") {
     let hasTestConfiguration = false;
     const frameworkTestPath = path.join(projectDir, "scripts", "test-framework.sh");
     if (hasFile("jest.config.js") || hasFile("jest.config.cjs") || hasFile("jest.config.mjs")
@@ -285,11 +307,12 @@ function run(args) {
   if (agentPaths.length === 0) warnings.push("에이전트 지침 또는 설정을 감지하지 못함");
 
   if (blocks.length === 0) canPlan = true;
+  canInitialize = blocks.length === 0 && (mode === "template" || mode === "initializing");
   let verdict;
   if (blocks.length > 0) verdict = "BLOCK";
   else if (warnings.length > 0) verdict = "WARNING";
   else verdict = "PASS";
-  if (!(mode === "active" && verdict !== "BLOCK")) canCode = false;
+  canCode = mode === "active" && verdict !== "BLOCK";
 
   const joinBy = (sep, values) => values.join(sep);
   const jsonEscape = (s) => String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -303,6 +326,8 @@ function run(args) {
     out.push(`- 대상 프로젝트: \`${projectDir}\``);
     out.push(`- 최종 판정: **${verdict}**`);
     out.push(`- Plan 진행: **${bashBool(canPlan)}**`);
+    out.push(`- 초기화 진행: **${bashBool(canInitialize)}**`);
+    out.push(`- 검증 준비 완료: **${bashBool(verificationReady)}**`);
     out.push(`- Coding 진행: **${bashBool(canCode)}**`);
     out.push("");
     out.push("## 감지된 환경");
@@ -330,7 +355,8 @@ function run(args) {
     if (verdict === "PASS") out.push("- Plan → Coding → Verification을 진행할 수 있습니다.");
     else if (verdict === "WARNING") {
       if (canCode) out.push("- WARNING 항목을 기록하고 Plan → Coding → Verification을 진행할 수 있습니다.");
-      else out.push("- Plan은 진행할 수 있습니다. Coding 전 WARNING을 해결하거나 active 검증 구성을 확정하세요.");
+      else if (canInitialize) out.push("- Plan과 승인된 Bootstrap 설정을 진행할 수 있습니다. 설정된 검증 명령이 통과하기 전 기능 Coding은 시작하지 마세요.");
+      else out.push("- Plan은 진행할 수 있습니다. 필수 BLOCK/WARNING을 해소한 뒤 다시 확인하세요.");
     } else out.push("- BLOCK 원인을 해결한 뒤 같은 Preflight를 재실행하세요. Plan/Coding으로 진행하지 마세요.");
     return out.join("\n") + "\n";
   }
@@ -341,7 +367,9 @@ function run(args) {
     lines.push(`  "project": "${jsonEscape(projectDir)}",`);
     lines.push(`  "verdict": "${verdict}",`);
     lines.push(`  "can_plan": ${bashBool(canPlan)},`);
+    lines.push(`  "can_initialize": ${bashBool(canInitialize)},`);
     lines.push(`  "can_code": ${bashBool(canCode)},`);
+    lines.push(`  "verification_ready": ${bashBool(verificationReady)},`);
     lines.push(`  "stack": ${jsonArray(stack)},`);
     lines.push(`  "package_manager": "${jsonEscape(packageManager)}",`);
     lines.push(`  "verification_mode": "${mode}",`);
@@ -376,7 +404,9 @@ function run(args) {
   "fingerprint": "${sessionFingerprint(projectDir)}",
   "verdict": "${verdict}",
   "can_plan": ${bashBool(canPlan)},
-  "can_code": ${bashBool(canCode)}
+  "can_initialize": ${bashBool(canInitialize)},
+  "can_code": ${bashBool(canCode)},
+  "verification_ready": ${bashBool(verificationReady)}
 }
 `;
     fs.writeFileSync(sessionFile, session, "utf8");

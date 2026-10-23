@@ -19,8 +19,8 @@ MODE="${AI_DEV_STANDARD_MODE:-}"
 REQUIRE_LINT="${AI_DEV_STANDARD_REQUIRE_LINT:-}"
 REQUIRE_TYPECHECK="${AI_DEV_STANDARD_REQUIRE_TYPECHECK:-}"
 REQUIRE_TEST="${AI_DEV_STANDARD_REQUIRE_TEST:-}"
-if [ "$MODE" != "template" ] && [ "$MODE" != "active" ]; then
-  echo "AI_DEV_STANDARD_MODE는 template 또는 active여야 합니다." >&2
+if [ "$MODE" != "template" ] && [ "$MODE" != "initializing" ] && [ "$MODE" != "active" ]; then
+  echo "AI_DEV_STANDARD_MODE는 template, initializing 또는 active여야 합니다." >&2
   exit 2
 fi
 for value in "$REQUIRE_LINT" "$REQUIRE_TYPECHECK" "$REQUIRE_TEST"; do
@@ -31,6 +31,42 @@ for value in "$REQUIRE_LINT" "$REQUIRE_TYPECHECK" "$REQUIRE_TEST"; do
 done
 
 FAIL=0
+
+# 신규 Bootstrap은 승인 계획의 검증 프로필을 사용한다. 기존 레거시 프로젝트는
+# 프로필이 없을 때 아래의 기존 lint/typecheck/test 경로를 유지한다.
+if [ "$MODE" != "template" ] && [ -f ".ai-dev-standard/verification.json" ]; then
+  if ! command -v node >/dev/null 2>&1; then
+    echo "검증 프로필을 실행하려면 Node.js가 필요합니다." >&2
+    exit 2
+  fi
+  echo "=========================================="
+  echo " verify.sh — 프로젝트 검증 프로필"
+  echo "=========================================="
+  echo ""
+  node -e '
+    const path = require("path");
+    const verification = require(path.resolve(process.argv[1]));
+    const loaded = verification.loadVerificationProfile(process.cwd());
+    if (loaded.status !== "ok") {
+      console.error(`검증 프로필 설정 오류: ${loaded.message || loaded.status}`);
+      process.exit(2);
+    }
+    const result = verification.runVerificationProfile(process.cwd(), loaded.profile);
+    process.exit(result.status === "pass" ? 0 : 1);
+  ' "$DIR/lib/verification.js"
+  PROFILE_STATUS=$?
+  echo ""
+  echo "=========================================="
+  if [ "$PROFILE_STATUS" -ne 0 ]; then
+    echo " RESULT: FAIL — 수정 후 재실행" >&2
+  elif [ "$MODE" = "active" ]; then
+    echo " RESULT: PASS — Verify 통과. 다음 단계: 독립 Review"
+  else
+    echo " RESULT: INITIALIZING PASS — active 전환은 승인된 초기화 명령에서만 가능"
+  fi
+  echo "=========================================="
+  exit "$PROFILE_STATUS"
+fi
 
 echo "=========================================="
 echo " verify.sh — 로컬 표준 검증"
@@ -99,7 +135,7 @@ fi
 echo ""
 echo "=========================================="
 if [ "$FAIL" -eq 0 ] && [ "$MODE" = "active" ]; then
-  echo " RESULT: PASS — READY_FOR_REVIEW 가능"
+  echo " RESULT: PASS — Verify 통과. 다음 단계: 독립 Review"
 elif [ "$FAIL" -eq 0 ]; then
   echo " RESULT: TEMPLATE PASS — active 설정 전에는 READY_FOR_REVIEW 불가"
 else

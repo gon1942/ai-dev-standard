@@ -14,6 +14,12 @@ for suite in \
   scripts/test-plan-templates.sh \
   scripts/test-e2e-gate.sh \
   scripts/test-e2e-profile.sh \
+  scripts/test-verification-profile.sh \
+  scripts/test-verify-profile.sh \
+  scripts/test-bootstrap-verification.sh \
+  scripts/test-bootstrap-approval.sh \
+  scripts/test-preflight-verification-profile.sh \
+  scripts/test-verification-convergence.sh \
   scripts/test-suggest-tools.sh \
   scripts/test-verification-evidence.sh; do
   echo "=== FRAMEWORK TEST: $suite ==="

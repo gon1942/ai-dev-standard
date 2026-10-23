@@ -208,7 +208,26 @@ function run(args) {
   }
 
   // Task Graph (선택 섹션) — 데이터 행이 없으면 검증을 생략한다.
+  // 단, 명세 깊이가 일반·설계 필요면 Task Graph 데이터 행이 필수다 (조건부 의무).
   {
+    const depthMatch = spec.match(/^- 깊이: (.*)$/m);
+    // 템플릿 주석 형태("일반  (단순 | 일반 | 설계 필요)")도 동일 취급 — 괄호 주석 제거 후 좌우 공백 정규화.
+    const depth = depthMatch ? depthMatch[1].split("(")[0].trim() : "";
+    const hasGraphRows = (() => {
+      const section = sectionInside(plan, /^## Task Graph$/).join("\n");
+      for (const line of section.split("\n")) {
+        if (!line.startsWith("|")) continue;
+        const cells = line.split("|").map((c) => c.trim());
+        const id = cells[1] || "";
+        if (id === "" || id === "Task") continue;
+        if (/^[-: ]*$/.test(id)) continue;
+        return true;
+      }
+      return false;
+    })();
+    if (!hasGraphRows && (depth === "일반" || depth === "설계 필요")) {
+      fail(`깊이 ${depth} 계획에는 '## Task Graph' 섹션(데이터 행 1개 이상)이 필요합니다.`, 2);
+    }
     const problems = taskGraphProblems(plan);
     if (problems.length > 0) fail(problems[0], 2);
   }

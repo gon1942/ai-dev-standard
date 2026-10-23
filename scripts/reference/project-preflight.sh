@@ -56,7 +56,10 @@ is_safe_runtime_asset_path() {
 
 session_fingerprint() {
   local paths=(
-    AGENTS.md CLAUDE.md .ai-dev-standard.env package.json pyproject.toml go.mod Cargo.toml
+    AGENTS.md CLAUDE.md .ai-dev-standard.env .ai-dev-standard/verification.json
+    .ai-dev-standard/verification-ready.json .ai-dev-standard/bootstrap-status.json
+    package.json package-lock.json pnpm-lock.yaml yarn.lock
+    pyproject.toml requirements.txt go.mod go.sum Cargo.toml Cargo.lock pom.xml build.gradle build.gradle.kts
     scripts/verify.sh scripts/lint.sh scripts/test.sh scripts/verify-plan.sh
     docs/development-workflow.md docs/project-preflight.md docs/framework-runtime-assets.tsv
   )
@@ -78,13 +81,13 @@ session_fingerprint() {
 SESSION_FILE="$PROJECT_DIR/.ai-dev-standard/session-preflight.json"
 if [ "$SESSION_STATUS" = true ]; then
   if [ ! -f "$SESSION_FILE" ]; then
-    echo '{"session_status":"missing","can_plan":false,"can_code":false}'
+    echo '{"session_status":"missing","can_plan":false,"can_initialize":false,"can_code":false,"verification_ready":false}'
     exit 2
   fi
   current_fingerprint="$(session_fingerprint)"
   stored_fingerprint="$(sed -n 's/^[[:space:]]*"fingerprint": "\([^"]*\)".*/\1/p' "$SESSION_FILE")"
   if [ -z "$stored_fingerprint" ] || [ "$current_fingerprint" != "$stored_fingerprint" ]; then
-    echo '{"session_status":"stale","can_plan":false,"can_code":false}'
+    echo '{"session_status":"stale","can_plan":false,"can_initialize":false,"can_code":false,"verification_ready":false}'
     exit 2
   fi
   cat "$SESSION_FILE"
@@ -104,6 +107,8 @@ require_lint=""
 require_test=""
 can_plan=false
 can_code=false
+can_initialize=false
+verification_ready=false
 
 add_warning() { warnings+=("$1"); }
 add_block() { blocks+=("$1"); }
@@ -159,6 +164,9 @@ fi
 has_file go.mod && stack+=("Go")
 has_file Cargo.toml && stack+=("Rust")
 has_file Dockerfile && stack+=("Docker")
+if has_file pom.xml || has_file build.gradle || has_file build.gradle.kts || has_file mvnw || has_file gradlew; then stack+=("Java/JVM"); fi
+if has_file .shellcheckrc || { for shell_dir in src bin ops; do [ -d "$PROJECT_DIR/$shell_dir" ] && find "$PROJECT_DIR/$shell_dir" -maxdepth 1 -type f -name '*.sh' -print -quit | grep -q . && break; done; }; then stack+=("Shell"); fi
+if [ -d "$PROJECT_DIR/systemd" ] || [ -d "$PROJECT_DIR/deploy/systemd" ]; then stack+=("System service"); fi
 if [ "${#stack[@]}" -eq 0 ]; then
   stack+=("판별 불가")
   add_warning "기술 스택 신호가 없어 프로젝트별 명령·템플릿 생성을 추정하지 않음"
@@ -170,7 +178,8 @@ if has_file .ai-dev-standard.env; then
   mode="${mode_line#AI_DEV_STANDARD_MODE=}"
   case "$mode" in
     active) add_check "검증 모드: active"; can_code=true ;;
-    template) add_warning "검증 모드가 template: Plan은 가능하지만 Coding/READY_FOR_REVIEW는 차단" ;;
+    template) add_warning "검증 모드가 template: Bootstrap/Plan은 가능하지만 기능 Coding/READY_FOR_REVIEW는 차단" ;;
+    initializing) add_warning "검증 모드가 initializing: 승인된 초기 설정만 가능하며 기능 Coding/READY_FOR_REVIEW는 차단" ;;
     *) add_block ".ai-dev-standard.env의 AI_DEV_STANDARD_MODE 값이 유효하지 않음" ;;
   esac
   for key in AI_DEV_STANDARD_REQUIRE_LINT AI_DEV_STANDARD_REQUIRE_TYPECHECK AI_DEV_STANDARD_REQUIRE_TEST; do
@@ -183,6 +192,21 @@ if has_file .ai-dev-standard.env; then
       AI_DEV_STANDARD_REQUIRE_TEST) require_test="$value" ;;
     esac
   done
+fi
+
+if [ -f "$PROJECT_DIR/.ai-dev-standard/verification.json" ]; then
+  profile_state="$(node -e 'const v=require(process.argv[1]); const r=v.loadVerificationProfile(process.argv[2]); if(r.status!=="ok"){console.log(JSON.stringify({status:r.status,message:r.message||r.status}));process.exit(0)} console.log(JSON.stringify({status:"ok",ready:v.isVerificationReady(process.argv[2]).ready,reason:v.isVerificationReady(process.argv[2]).reason||""}))' "$FRAMEWORK_ROOT/lib/verification.js" "$PROJECT_DIR" 2>/dev/null || true)"
+  if [ -n "$profile_state" ]; then
+    profile_status="$(printf '%s' "$profile_state" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')"
+    if [ "$profile_status" = "invalid" ]; then
+      add_block "검증 프로필 오류: $(printf '%s' "$profile_state" | sed -n 's/.*"message":"\([^"]*\)".*/\1/p')"
+    elif [ "$profile_status" = "ok" ]; then
+      add_check "검증 프로필: 유효"
+      ready_value="$(printf '%s' "$profile_state" | sed -n 's/.*"ready":\(true\|false\).*/\1/p')"
+      if [ "$ready_value" = "true" ]; then verification_ready=true; add_check "검증 준비 증거: 최신"
+      else add_warning "검증 준비 증거 없음 또는 오래됨: $(printf '%s' "$profile_state" | sed -n 's/.*"reason":"\([^"]*\)".*/\1/p')"; fi
+    fi
+  fi
 fi
 
 # 필수 문서는 존재뿐 아니라 비어 있지 않아야 한다. 의미 해석·병합은 LLM과 사람 승인 영역이다.
@@ -278,6 +302,7 @@ agent_paths=()
 if [ "${#blocks[@]}" -eq 0 ]; then
   can_plan=true
 fi
+if [ "${#blocks[@]}" -eq 0 ] && { [ "$mode" = "template" ] || [ "$mode" = "initializing" ]; }; then can_initialize=true; fi
 if [ "${#blocks[@]}" -gt 0 ]; then
   verdict="BLOCK"
 elif [ "${#warnings[@]}" -gt 0 ]; then
@@ -297,6 +322,8 @@ markdown_report() {
   printf -- '- 대상 프로젝트: `%s`\n' "$PROJECT_DIR"
   printf -- '- 최종 판정: **%s**\n' "$verdict"
   printf -- '- Plan 진행: **%s**\n' "$can_plan"
+  printf -- '- 초기화 진행: **%s**\n' "$can_initialize"
+  printf -- '- 검증 준비 완료: **%s**\n' "$verification_ready"
   printf -- '- Coding 진행: **%s**\n' "$can_code"
   echo
   echo "## 감지된 환경"
@@ -336,7 +363,9 @@ json_report() {
   printf '  "project": "%s",\n' "$(json_escape "$PROJECT_DIR")"
   printf '  "verdict": "%s",\n' "$verdict"
   printf '  "can_plan": %s,\n' "$can_plan"
+  printf '  "can_initialize": %s,\n' "$can_initialize"
   printf '  "can_code": %s,\n' "$can_code"
+  printf '  "verification_ready": %s,\n' "$verification_ready"
   printf '  "stack": '; json_array "${stack[@]}"; printf ',\n'
   printf '  "package_manager": "%s",\n' "$(json_escape "$package_manager")"
   printf '  "verification_mode": "%s",\n' "$mode"
@@ -356,7 +385,9 @@ write_session() {
   "fingerprint": "$(session_fingerprint)",
   "verdict": "$verdict",
   "can_plan": $can_plan,
-  "can_code": $can_code
+  "can_initialize": $can_initialize,
+  "can_code": $can_code,
+  "verification_ready": $verification_ready
 }
 EOF
   mv "$session_temp" "$SESSION_FILE"
