@@ -11,10 +11,13 @@ const { ROOT, fail, sectionInside } = require("../util");
 const CLI = path.resolve(__dirname, "..", "cli.js");
 
 function run(args) {
-  if (args.length !== 1 || !fs.existsSync(path.resolve(ROOT, args[0]))) {
-    fail("사용법: scripts/verify-plan.sh <docs/exec-plans/active/실행계획.md>", 2);
+  // --fast: 구현 반복용 경량 체인 — verify에 전달한다. 수렴 전 full 1회는 별도 필수.
+  const fast = args.includes("--fast");
+  const planArgs = args.filter((a) => a !== "--fast");
+  if (planArgs.length !== 1 || !fs.existsSync(path.resolve(ROOT, planArgs[0]))) {
+    fail("사용법: scripts/verify-plan.sh <docs/exec-plans/active/실행계획.md> [--fast]", 2);
   }
-  const planFile = args[0];
+  const planFile = planArgs[0];
   if (!planFile.startsWith("docs/exec-plans/active/")) {
     fail(`활성 실행 계획 파일을 지정하세요: ${planFile}`, 2);
   }
@@ -33,7 +36,7 @@ function run(args) {
   }
 
   // bash: bash scripts/verify.sh — node 엔진 호출로 동치 (엔진 수준 동치성).
-  const verify = spawnSync(process.execPath, [CLI, "verify"], { stdio: "inherit", cwd: ROOT });
+  const verify = spawnSync(process.execPath, [CLI, "verify", ...(fast ? ["--fast"] : [])], { stdio: "inherit", cwd: ROOT });
   const result = verify.status === null ? 1 : verify.status;
 
   process.stdout.write("\n");

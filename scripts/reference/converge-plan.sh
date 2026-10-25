@@ -101,11 +101,34 @@ fi
 
 # ── 지문 비교로 검증 재사용 판정 ──
 # 최신 PASS 증거의 소스 지문이 현재 지문과 일치하면 verify 재실행을 생략한다.
+# 최신 full PASS 증거의 지문을 낸다. fast 체인(--fast)은 구현 반복용이며
+# 수렴은 full PASS를 요구한다. 레거시 항목(--fast 표기 없음)은 full로 취급한다.
 latest_fingerprint() {
-  awk '/^## 자동 검증 증거$/{inside=1; next} /^## /{inside=0} inside && /^- 종료 코드: 0/{pass=1} inside && /^- 소스 지문: /{
-    sub(/^- 소스 지문: /, "", $0)
-    fp=$0
-  } END{ if(pass && length(fp)==64) print fp }' "$PLAN_FILE"
+  awk '
+    function flush() { if (pass && !fast && length(fp) == 64) last_full = fp }
+    /^### 실행 /{ flush(); pass=0; fast=0; fp=""; next }
+    /^## 자동 검증 증거$/{inside=1; next}
+    /^## /{ inside=0 }
+    inside {
+      if (/^- 종료 코드: 0/) pass=1
+      if (/--fast/) fast=1
+      if (/^- 소스 지문: /) { sub(/^- 소스 지문: /, "", $0); fp=$0 }
+    }
+    END{ flush(); if (length(last_full) == 64) print last_full }
+  ' "$PLAN_FILE"
+}
+# PASS 증거는 있으나 전부 fast 체인인지 판정한다 (fast-only 차단 메시지용).
+fast_pass_only() {
+  awk '
+    function flush() { if (entry_pass && !entry_fast) full_pass = 1 }
+    /^### 실행 /{ flush(); entry_pass=0; entry_fast=0; next }
+    /^## /{ inside = ($0 == "## 자동 검증 증거") ? 1 : 0 }
+    inside {
+      if (/^- 종료 코드: 0/) entry_pass=1
+      if (/--fast/) entry_fast=1
+    }
+    END{ flush(); if (!full_pass) print "yes" }
+  ' "$PLAN_FILE"
 }
 
 current_fingerprint() {
@@ -120,6 +143,7 @@ current_fingerprint() {
 }
 
 LATEST_FP="$(latest_fingerprint)"
+FAST_ONLY="$(fast_pass_only)"
 CURRENT_FP="$(current_fingerprint "$PLAN_FILE")" || CURRENT_FP=""
 
 if [ -n "$LATEST_FP" ] && [ -n "$CURRENT_FP" ] && [ "$LATEST_FP" = "$CURRENT_FP" ]; then
@@ -127,6 +151,10 @@ if [ -n "$LATEST_FP" ] && [ -n "$CURRENT_FP" ] && [ "$LATEST_FP" = "$CURRENT_FP"
 elif [ -z "$CURRENT_FP" ]; then
   echo "CONVERGENCE: BLOCKED — 소스 지문을 확인할 수 없습니다 (Git 상태 불가)." >&2
   echo "record-verification-evidence를 다시 실행한 뒤 재시도하세요." >&2
+  exit 1
+elif [ "$FAST_ONLY" = "yes" ] && [ -z "$LATEST_FP" ]; then
+  echo "CONVERGENCE: BLOCKED — 최신 PASS 증거가 fast 체인입니다." >&2
+  echo "수렴 전 full 검증 1회가 필수입니다 — record-verification-evidence를(full) 실행한 뒤 재시도하세요." >&2
   exit 1
 elif [ -z "$LATEST_FP" ]; then
   echo "CONVERGENCE: BLOCKED — 최신 PASS 증거에 소스 지문이 없습니다 (레거시 형식)." >&2

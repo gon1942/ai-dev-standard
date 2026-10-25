@@ -19,7 +19,8 @@ function toolExists(tool) {
 }
 
 function run(args) {
-  void args;
+  // --fast: 구현 반복용 경량 체인 — test 종류 검사만 실행한다. 수렴 전 full 1회는 별도 필수.
+  const fast = args.includes("--fast");
   const configFile = path.join(ROOT, ".ai-dev-standard.env");
   if (!fs.existsSync(configFile)) {
     fail("설정 파일이 없습니다: .ai-dev-standard.env", 2);
@@ -50,11 +51,23 @@ function run(args) {
   }
   if (mode !== "template" && profile.status === "ok") {
     process.stdout.write("==========================================\n");
-    process.stdout.write(" verify.sh — 프로젝트 검증 프로필\n");
+    process.stdout.write(fast ? " verify.sh — 프로젝트 검증 프로필 (fast — test 체인)\n" : " verify.sh — 프로젝트 검증 프로필\n");
     process.stdout.write("==========================================\n\n");
-    const result = runVerificationProfile(ROOT, profile.profile);
+    // fast: kind가 test인 검사만 실행한다 (구현 반복용). full은 수렴 전 1회 필수.
+    const profileToRun = fast
+      ? {
+          ...profile.profile,
+          components: (profile.profile.components || [])
+            .map((component) => ({
+              ...component,
+              checks: (component.checks || []).filter((check) => check.kind === "test"),
+            }))
+            .filter((component) => component.checks.length > 0),
+        }
+      : profile.profile;
+    const result = runVerificationProfile(ROOT, profileToRun);
     failed = result.status !== "pass";
-    if (env.AI_DEV_STANDARD_DUPLICATE_CHECK === "true") {
+    if (!fast && env.AI_DEV_STANDARD_DUPLICATE_CHECK === "true") {
       process.stdout.write("\n[추가] 중복 검사 (신규 클론 — 경고)\n");
       const dup = spawnSync(process.execPath, [CLI, "duplicate-check"], { stdio: "inherit", cwd: ROOT });
       if (dup.status !== 0) process.stdout.write("--- Duplicate check 건너뜀 (jscpd 실행 불가) ---\n");
@@ -62,6 +75,8 @@ function run(args) {
     process.stdout.write("\n==========================================\n");
     if (failed) {
       process.stderr.write(" RESULT: FAIL — 수정 후 재실행\n");
+    } else if (mode === "active" && fast) {
+      process.stdout.write(" RESULT: PASS (fast — test 체인) — 구현 계속. 완료 전 full 검증 1회 필수\n");
     } else if (mode === "active") {
       process.stdout.write(" RESULT: PASS — Verify 통과. 다음 단계: 독립 Review\n");
     } else {
@@ -91,12 +106,20 @@ function run(args) {
   process.stdout.write("==========================================\n");
 
   process.stdout.write("\n[1/3] Lint\n");
-  runCheck("Lint", requireLint, process.execPath, [CLI, "lint"]);
+  if (fast) {
+    process.stdout.write("--- Lint: fast 체인에서 생략 — full 검증에서 실행 ---\n");
+  } else {
+    runCheck("Lint", requireLint, process.execPath, [CLI, "lint"]);
+  }
 
   process.stdout.write("\n[2/3] TypeCheck\n");
-  // PLACEHOLDER: 프로젝트 타입체커로 교체 (현재: tsconfig 있으면 tsc --noEmit)
   let tcDone = false;
-  if (fs.existsSync(path.join(ROOT, "tsconfig.json")) && toolExists("npx")) {
+  if (fast) {
+    process.stdout.write("--- TypeCheck: fast 체인에서 생략 — full 검증에서 실행 ---\n");
+    tcDone = true;
+  }
+  // PLACEHOLDER: 프로젝트 타입체커로 교체 (현재: tsconfig 있으면 tsc --noEmit)
+  if (!fast && fs.existsSync(path.join(ROOT, "tsconfig.json")) && toolExists("npx")) {
     const tsc = spawnSync("npx", ["--no-install", "tsc", "--noEmit"], { stdio: "inherit", cwd: ROOT });
     if (tsc.status === 0) {
       process.stdout.write("=== TYPECHECK: PASS ===\n");
@@ -120,8 +143,8 @@ function run(args) {
   process.stdout.write("\n[3/3] Tests (all)\n");
   runCheck("Tests", requireTest, process.execPath, [CLI, "test", "all"]);
 
-  // 선택 검사: 신규 중복 클론 경고 (jscpd 기준선). 경고 방식 — FAIL로 판정하지 않는다.
-  if (env.AI_DEV_STANDARD_DUPLICATE_CHECK === "true") {
+  // 선택 검사: 신규 중복 클론 경고 (jscpd 기준선). 경고 방식 — FAIL로 판정하지 않는다. fast에서는 생략.
+  if (!fast && env.AI_DEV_STANDARD_DUPLICATE_CHECK === "true") {
     process.stdout.write("\n[추가] 중복 검사 (신규 클론 — 경고)\n");
     const dup = spawnSync(process.execPath, [CLI, "duplicate-check"], { stdio: "inherit", cwd: ROOT });
     if (dup.status !== 0) {
@@ -130,7 +153,9 @@ function run(args) {
   }
 
   process.stdout.write("\n==========================================\n");
-  if (!failed && mode === "active") {
+  if (!failed && mode === "active" && fast) {
+    process.stdout.write(" RESULT: PASS (fast — test 체인) — 구현 계속. 완료 전 full 검증 1회 필수\n");
+  } else if (!failed && mode === "active") {
     process.stdout.write(" RESULT: PASS — Verify 통과. 다음 단계: 독립 Review\n");
   } else if (!failed) {
     process.stdout.write(" RESULT: TEMPLATE PASS — active 설정 전에는 READY_FOR_REVIEW 불가\n");

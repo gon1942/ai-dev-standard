@@ -3,8 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
-  echo "사용법: scripts/verify-plan.sh <docs/exec-plans/active/실행계획.md>" >&2
+FAST=0
+if [ "${2:-}" = "--fast" ]; then FAST=1; fi
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ] || [ ! -f "$1" ]; then
+  echo "사용법: scripts/verify-plan.sh <docs/exec-plans/active/실행계획.md> [--fast]" >&2
   exit 2
 fi
 
@@ -21,7 +23,7 @@ for heading in '^# Exec Plan:' '^- 제품 명세:' '^## 구현 계획$' '^## 검
   fi
 done
 
-bash scripts/verify.sh
+if [ "$FAST" -eq 1 ]; then bash scripts/verify.sh --fast; else bash scripts/verify.sh; fi
 RESULT=$?
 echo ""
 echo "실행 계획의 검증 계획·회귀 대상을 수행하고 같은 파일에 AC 판정과 증거를 기록하세요:"

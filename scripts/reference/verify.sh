@@ -31,6 +31,9 @@ for value in "$REQUIRE_LINT" "$REQUIRE_TYPECHECK" "$REQUIRE_TEST"; do
 done
 
 FAIL=0
+# --fast: 구현 반복용 경량 체인 — test 종류 검사만 실행한다. 수렴 전 full 1회는 별도 필수.
+FAST=0
+[ "${1:-}" = "--fast" ] && FAST=1
 
 # 신규 Bootstrap은 승인 계획의 검증 프로필을 사용한다. 기존 레거시 프로젝트는
 # 프로필이 없을 때 아래의 기존 lint/typecheck/test 경로를 유지한다.
@@ -40,7 +43,11 @@ if [ "$MODE" != "template" ] && [ -f ".ai-dev-standard/verification.json" ]; the
     exit 2
   fi
   echo "=========================================="
-  echo " verify.sh — 프로젝트 검증 프로필"
+  if [ "$FAST" -eq 1 ]; then
+    echo " verify.sh — 프로젝트 검증 프로필 (fast — test 체인)"
+  else
+    echo " verify.sh — 프로젝트 검증 프로필"
+  fi
   echo "=========================================="
   echo ""
   node -e '
@@ -51,14 +58,29 @@ if [ "$MODE" != "template" ] && [ -f ".ai-dev-standard/verification.json" ]; the
       console.error(`검증 프로필 설정 오류: ${loaded.message || loaded.status}`);
       process.exit(2);
     }
-    const result = verification.runVerificationProfile(process.cwd(), loaded.profile);
+    // fast: kind가 test인 검사만 실행한다 (구현 반복용). full은 수렴 전 1회 필수.
+    const fast = process.argv[2] === "1";
+    const profile = fast
+      ? {
+          ...loaded.profile,
+          components: (loaded.profile.components || [])
+            .map((component) => ({
+              ...component,
+              checks: (component.checks || []).filter((check) => check.kind === "test"),
+            }))
+            .filter((component) => component.checks.length > 0),
+        }
+      : loaded.profile;
+    const result = verification.runVerificationProfile(process.cwd(), profile);
     process.exit(result.status === "pass" ? 0 : 1);
-  ' "$DIR/lib/verification.js"
+  ' "$DIR/lib/verification.js" "$FAST"
   PROFILE_STATUS=$?
   echo ""
   echo "=========================================="
   if [ "$PROFILE_STATUS" -ne 0 ]; then
     echo " RESULT: FAIL — 수정 후 재실행" >&2
+  elif [ "$MODE" = "active" ] && [ "$FAST" -eq 1 ]; then
+    echo " RESULT: PASS (fast — test 체인) — 구현 계속. 완료 전 full 검증 1회 필수"
   elif [ "$MODE" = "active" ]; then
     echo " RESULT: PASS — Verify 통과. 다음 단계: 독립 Review"
   else
@@ -95,13 +117,21 @@ runCheck() {
 
 echo ""
 echo "[1/3] Lint"
-runCheck "Lint" "$REQUIRE_LINT" "$DIR/lint.sh"
+if [ "$FAST" -eq 1 ]; then
+  echo "--- Lint: fast 체인에서 생략 — full 검증에서 실행 ---"
+else
+  runCheck "Lint" "$REQUIRE_LINT" "$DIR/lint.sh"
+fi
 
 echo ""
 echo "[2/3] TypeCheck"
-# PLACEHOLDER: 프로젝트 타입체커로 교체 (현재: tsconfig 있으면 tsc --noEmit)
 TC_DONE=0
-if [ -f "tsconfig.json" ] && command -v npx >/dev/null 2>&1; then
+if [ "$FAST" -eq 1 ]; then
+  echo "--- TypeCheck: fast 체인에서 생략 — full 검증에서 실행 ---"
+  TC_DONE=1
+fi
+# PLACEHOLDER: 프로젝트 타입체커로 교체 (현재: tsconfig 있으면 tsc --noEmit)
+if [ "$FAST" -eq 0 ] && [ -f "tsconfig.json" ] && command -v npx >/dev/null 2>&1; then
   if npx --no-install tsc --noEmit; then
     echo "=== TYPECHECK: PASS ==="; TC_DONE=1
   else
@@ -123,8 +153,8 @@ echo ""
 echo "[3/3] Tests (all)"
 runCheck "Tests" "$REQUIRE_TEST" "$DIR/test.sh" all
 
-# 선택 검사: 신규 중복 클론 경고 (jscpd 기준선). 경고 방식 — FAIL로 판정하지 않는다.
-if [ "${AI_DEV_STANDARD_DUPLICATE_CHECK:-}" = "true" ]; then
+# 선택 검사: 신규 중복 클론 경고 (jscpd 기준선). 경고 방식 — FAIL로 판정하지 않는다. fast에서는 생략.
+if [ "$FAST" -eq 0 ] && [ "${AI_DEV_STANDARD_DUPLICATE_CHECK:-}" = "true" ]; then
   echo ""
   echo "[추가] 중복 검사 (신규 클론 — 경고)"
   if ! bash "$DIR/duplicate-check.sh"; then
@@ -134,7 +164,9 @@ fi
 
 echo ""
 echo "=========================================="
-if [ "$FAIL" -eq 0 ] && [ "$MODE" = "active" ]; then
+if [ "$FAIL" -eq 0 ] && [ "$MODE" = "active" ] && [ "$FAST" -eq 1 ]; then
+  echo " RESULT: PASS (fast — test 체인) — 구현 계속. 완료 전 full 검증 1회 필수"
+elif [ "$FAIL" -eq 0 ] && [ "$MODE" = "active" ]; then
   echo " RESULT: PASS — Verify 통과. 다음 단계: 독립 Review"
 elif [ "$FAIL" -eq 0 ]; then
   echo " RESULT: TEMPLATE PASS — active 설정 전에는 READY_FOR_REVIEW 불가"

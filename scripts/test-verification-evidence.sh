@@ -167,4 +167,15 @@ if grep -Fq 'READY_FOR_REVIEW 가능' "$ROOT/scripts/lib/commands/verify.js" "$R
   fail 'verify 통과 메시지가 READY_FOR_REVIEW를 유도합니다 (리뷰·수렴 전 불가)'
 fi
 
+# --fast: 구현 반복용 경량 체인 — 증거 항목에 fast 표기가 남는다.
+set +e
+AI_DEV_STANDARD_ROOT="$SUCCESS_ROOT" node "$ROOT/scripts/lib/cli.js" record-verification-evidence "$SUCCESS_PLAN" --fast > "$TMP_ROOT/fast.out" 2>&1
+FAST_CODE=$?
+set -e
+[ "$FAST_CODE" -eq 0 ] || { cat "$TMP_ROOT/fast.out" >&2; fail 'fast 증거 기록이 실패했습니다'; }
+FAST_TEXT="$(sed -n '/^## 자동 검증 증거$/,$p' "$SUCCESS_ROOT/$SUCCESS_PLAN" | awk '/^### 실행 /{buf=""} {buf=buf $0 "\n"} END{printf "%s", buf}')"
+grep -Fq -- '--fast' <<<"$FAST_TEXT" || fail 'fast 증거의 실행 명령에 --fast가 없습니다'
+grep -Fq '(fast — test 체인)' <<<"$FAST_TEXT" || fail 'fast 증거의 결과 요약에 fast 표기가 없습니다'
+grep -Fq 'fast — test 체인' "$TMP_ROOT/fast.out" || fail 'fast 기록 안내 메시지가 없습니다'
+
 echo 'PASS: verification evidence records PASS/FAIL safely without state transitions'

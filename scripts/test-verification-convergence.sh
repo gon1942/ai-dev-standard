@@ -167,4 +167,19 @@ set -e
 [ "$REVIEW_STALE_CODE" -ne 0 ] || fail 'review with stale source fingerprint must block convergence after verification refresh'
 grep -Fq '리뷰' "$TMP_ROOT/review-stale.out" || fail "stale-review block reason absent: $(cat "$TMP_ROOT/review-stale.out")"
 
+# fast 체인 PASS만 있는 계획은 수렴이 차단된다 — 수렴 전 full 체인 1회가 필수다.
+# 리뷰 신선도 게이트에 걸리지 않도록 리뷰는 레거시 형식(버전 미기재)으로 되돌린다.
+FAST_PLAN="$PROJECT/docs/exec-plans/active/work-fast.md"
+sed 's/# Exec Plan: convergence fixture/# Exec Plan: convergence fast fixture/' "$PLAN" > "$FAST_PLAN"
+sed -i '/^- 리뷰 계약 버전:/d' "$FAST_PLAN"
+sed -i '/^## 리뷰 기록$/,/^## /{/^## 리뷰 기록$/d; /^## /!d}' "$FAST_PLAN"
+sed -i 's/^- 종료 코드: 0$/- 실행 명령: `node scripts\/lib\/cli.js verify-plan docs\/exec-plans\/active\/work-fast.md --fast`\n- 종료 코드: 0/' "$FAST_PLAN"
+set +e
+AI_DEV_STANDARD_ROOT="$PROJECT" node "$ROOT/scripts/lib/cli.js" converge-plan docs/exec-plans/active/work-fast.md > "$TMP_ROOT/fast-only.out" 2>&1
+FAST_ONLY_CODE=$?
+set -e
+[ "$FAST_ONLY_CODE" -ne 0 ] || fail 'fast-only evidence must block convergence'
+grep -Fq 'fast 체인입니다' "$TMP_ROOT/fast-only.out" || fail "fast-only block reason absent: $(cat "$TMP_ROOT/fast-only.out")"
+rm -f "$FAST_PLAN"
+
 echo 'PASS: convergence checks review evidence version and source freshness while retaining legacy support'

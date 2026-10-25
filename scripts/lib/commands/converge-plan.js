@@ -99,6 +99,12 @@ function run(args) {
         "record-verification-evidence를 다시 실행한 뒤 재시도하세요.",
       1
     );
+  } else if (latestFingerprint === "FAST_ONLY") {
+    fail(
+      "CONVERGENCE: BLOCKED — 최신 PASS 증거가 fast 체인입니다.\n" +
+        "수렴 전 full 검증 1회가 필수입니다 — record-verification-evidence를(full) 실행한 뒤 재시도하세요.",
+      1
+    );
   } else if (!latestFingerprint) {
     fail(
       "CONVERGENCE: BLOCKED — 최신 PASS 증거에 소스 지문이 없습니다 (레거시 형식).\n" +
@@ -118,7 +124,9 @@ function run(args) {
   );
 }
 
-// 계획 파일에서 최신 PASS 증거의 소스 지문을 추출한다.
+// 계획 파일에서 최신 full PASS 증거의 소스 지문을 추출한다.
+// fast 체인(--fast) 증거는 구현 반복용이다 — 수렴은 full 체인 PASS를 요구한다.
+// 레거시 항목(--fast 표기 없음)은 full로 취급한다.
 function extractLatestPassFingerprint(plan) {
   const evidenceSection = sectionInside(plan, /^## 자동 검증 증거$/);
   const entries = [];
@@ -133,12 +141,20 @@ function extractLatestPassFingerprint(plan) {
   }
   if (current) entries.push(current);
 
+  let sawFastPass = false;
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i].lines.join("\n");
-    if (/- 종료 코드: 0/.test(entry) && /- 소스 지문: ([a-f0-9]{64})/.test(entry)) {
+    if (!/- 종료 코드: 0/.test(entry)) continue;
+    const fast = /--fast/.test(entry);
+    if (fast) {
+      sawFastPass = true;
+      continue;
+    }
+    if (/- 소스 지문: ([a-f0-9]{64})/.test(entry)) {
       return (entry.match(/- 소스 지문: ([a-f0-9]{64})/) || [])[1] || null;
     }
   }
+  if (sawFastPass) return "FAST_ONLY";
   return null;
 }
 
