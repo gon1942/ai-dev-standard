@@ -27,6 +27,18 @@ bootstrap "$node_project" # 두 번째 초기화도 기존 파일을 덮어쓰�
 sed -i 's/^AI_DEV_STANDARD_MODE=.*/AI_DEV_STANDARD_MODE=active/' "$node_project/.ai-dev-standard.env"
 sed -i 's/^AI_DEV_STANDARD_REQUIRE_LINT=.*/AI_DEV_STANDARD_REQUIRE_LINT=false/' "$node_project/.ai-dev-standard.env"
 sed -i 's/^AI_DEV_STANDARD_REQUIRE_TEST=.*/AI_DEV_STANDARD_REQUIRE_TEST=false/' "$node_project/.ai-dev-standard.env"
+
+# active 모드에는 Git 저장소가 필요하다 — .git 없으면 BLOCK되고 안내 문구가 보고돼야 한다.
+if "$ROOT/scripts/project-preflight.sh" --project-dir "$node_project" --run-checks --format json > "$node_project/nogit.json" 2>/dev/null; then
+  echo 'FAIL: active 모드에서 Git 저장소 없이 통과함' >&2
+  exit 1
+fi
+grep -Fq 'Git 저장소가 필요합니다' "$node_project/nogit.json" || { echo 'FAIL: Git 필수 BLOCK 문구 없음' >&2; exit 1; }
+
+# git 초기화 후에는 통과해야 한다 (지문 재사용·diff 리뷰 전제 확보).
+git -C "$node_project" init -q
+git -C "$node_project" add -A
+git -C "$node_project" -c user.name='framework-test' -c user.email='framework-test@example.invalid' commit -qm 'fixture: active 사전 조건'
 if ! "$ROOT/scripts/project-preflight.sh" --project-dir "$node_project" --run-checks --format json > "$node_project/first.json"; then
   (cd "$node_project" && bash scripts/verify.sh) >&2 || true
   cat "$node_project/first.json" >&2

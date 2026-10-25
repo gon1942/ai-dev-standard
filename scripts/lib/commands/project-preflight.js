@@ -212,7 +212,13 @@ function run(args) {
     const envLines = fs.readFileSync(path.join(projectDir, ".ai-dev-standard.env"), "utf8").split("\n");
     const modeLines = envLines.filter((l) => /^AI_DEV_STANDARD_MODE=/.test(l));
     mode = modeLines.length ? modeLines[modeLines.length - 1].replace(/^AI_DEV_STANDARD_MODE=/, "") : "";
-    if (mode === "active") checks.push("검증 모드: active");
+    if (mode === "active") {
+      checks.push("검증 모드: active");
+      // active 모드의 전제: 소스 지문 재사용·diff 리뷰·수렴 검사는 Git 저장소 위에서만 작동한다.
+      if (!fs.existsSync(path.join(projectDir, ".git"))) {
+        blocks.push("active 모드에는 Git 저장소가 필요합니다 — git init 후 초기 커밋 (증거 지문 재사용·diff 리뷰·수렴 검사의 전제)");
+      }
+    }
     else if (mode === "template") warnings.push("검증 모드가 template: Bootstrap/Plan은 가능하지만 기능 Coding/READY_FOR_REVIEW는 차단");
     else if (mode === "initializing") warnings.push("검증 모드가 initializing: 승인된 초기 설정만 가능하며 기능 Coding/READY_FOR_REVIEW는 차단");
     else blocks.push(".ai-dev-standard.env의 AI_DEV_STANDARD_MODE 값이 유효하지 않음");

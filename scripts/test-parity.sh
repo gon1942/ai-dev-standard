@@ -498,6 +498,19 @@ crg_record_case "CRG기록후행구분자" "$CRG_TRAILING_RECORD"
   compare_outputs "검증-템플릿통과" "$BC" "$TMP/g5-bash.out" "$NC" "$TMP/g5-node.out"
 }
 
+# g5b: verify --fast — template 모드에서도 fast 체인 동치 (lint·typecheck 생략 안내 포함)
+{
+  BD="$TMP/g5b-bash"; ND="$TMP/g5b-node"
+  setup_case "$BD" lint.sh test.sh verify.sh
+  write_gate_fixtures "$BD" template false simple
+  write_gate_fixtures "$ND" template false simple
+  set +e
+  (cd "$BD" && bash scripts/verify.sh --fast) > "$TMP/g5b-bash.out" 2>&1; BC=$?
+  node_cli "$ND" verify --fast > "$TMP/g5b-node.out" 2>&1; NC=$?
+  set -e
+  compare_outputs "검증-fast템플릿통과" "$BC" "$TMP/g5b-bash.out" "$NC" "$TMP/g5b-node.out"
+}
+
 # g6: verify — 잘못된 모드 → exit 2
 {
   BD="$TMP/g6-bash"; ND="$TMP/g6-node"
@@ -822,6 +835,44 @@ cp "$FW/scripts/reference/"*.sh "$FW/scripts/"
   AI_DEV_STANDARD_FRAMEWORK_ROOT="$FW" node "$ROOT/scripts/lib/cli.js" project-preflight --project-dir "$TGT" > "$TMP/t2-node.out" 2>&1; NC=$?
   set -e
   compare_outputs "프리플라이트-빈대상차단" "$BC" "$TMP/t2-bash.out" "$NC" "$TMP/t2-node.out"
+}
+
+# t2b: project-preflight active 모드 + Git 없음 → BLOCK (git 필수 검사 동치)
+write_active_env() {
+  cat > "$1/.ai-dev-standard.env" <<'ENVEOF'
+AI_DEV_STANDARD_MODE=active
+AI_DEV_STANDARD_REQUIRE_LINT=false
+AI_DEV_STANDARD_REQUIRE_TYPECHECK=false
+AI_DEV_STANDARD_REQUIRE_TEST=false
+ENVEOF
+}
+{
+  TGT="$TMP/t2b-target"
+  mkdir -p "$TGT"
+  write_active_env "$TGT"
+  set +e
+  (cd "$FW" && AI_DEV_STANDARD_FRAMEWORK_ROOT="$FW" bash scripts/reference/project-preflight.sh --project-dir "$TGT") > "$TMP/t2b-bash.out" 2>&1; BC=$?
+  AI_DEV_STANDARD_FRAMEWORK_ROOT="$FW" node "$ROOT/scripts/lib/cli.js" project-preflight --project-dir "$TGT" > "$TMP/t2b-node.out" 2>&1; NC=$?
+  set -e
+  grep -Fq 'Git 저장소가 필요합니다' "$TMP/t2b-bash.out" || { echo 'FAIL [프리플라이트-active무git] bash에 git BLOCK 문구 없음' >&2; FAIL_COUNT=$((FAIL_COUNT+1)); }
+  grep -Fq 'Git 저장소가 필요합니다' "$TMP/t2b-node.out" || { echo 'FAIL [프리플라이트-active무git] node에 git BLOCK 문구 없음' >&2; FAIL_COUNT=$((FAIL_COUNT+1)); }
+  compare_outputs "프리플라이트-active무git차단" "$BC" "$TMP/t2b-bash.out" "$NC" "$TMP/t2b-node.out"
+}
+
+# t2c: project-preflight active 모드 + .git 디렉토리 존재 → git BLOCK 없음 (양측 통과 동치)
+{
+  TGT="$TMP/t2c-target"
+  mkdir -p "$TGT/.git"
+  write_active_env "$TGT"
+  set +e
+  (cd "$FW" && AI_DEV_STANDARD_FRAMEWORK_ROOT="$FW" bash scripts/reference/project-preflight.sh --project-dir "$TGT") > "$TMP/t2c-bash.out" 2>&1; BC=$?
+  AI_DEV_STANDARD_FRAMEWORK_ROOT="$FW" node "$ROOT/scripts/lib/cli.js" project-preflight --project-dir "$TGT" > "$TMP/t2c-node.out" 2>&1; NC=$?
+  set -e
+  if grep -Fq 'Git 저장소가 필요합니다' "$TMP/t2c-bash.out" "$TMP/t2c-node.out"; then
+    echo 'FAIL [프리플라이트-active저장소있음] 정상 .git 디렉토리에서 오투 BLOCK' >&2
+    FAIL_COUNT=$((FAIL_COUNT+1))
+  fi
+  compare_outputs "프리플라이트-active저장소있음" "$BC" "$TMP/t2c-bash.out" "$NC" "$TMP/t2c-node.out"
 }
 
 # t3: project-preflight --session-status 없음 → json exit 2

@@ -45,6 +45,10 @@ ACTIVE="$TMP_ROOT/active"
 mkdir -p "$ACTIVE"
 bootstrap "$ACTIVE"
 sed -i 's/^AI_DEV_STANDARD_MODE=template$/AI_DEV_STANDARD_MODE=active/' "$ACTIVE/.ai-dev-standard.env"
+# active 모드에는 Git 저장소가 필요하다 (프레임워크 공통 전제).
+git -C "$ACTIVE" init -q
+git -C "$ACTIVE" add -A
+git -C "$ACTIVE" -c user.name='framework-test' -c user.email='framework-test@example.invalid' commit -qm 'fixture: active 전제'
 mkdir -p "$ACTIVE/.ai-dev-standard"
 cat > "$ACTIVE/.ai-dev-standard/verification.json" <<EOF
 {"schema_version":1,"components":[{"id":"java","paths":["src/"],"checks":[{"id":"test","kind":"test","command":"$NODE","args":["-e","process.exit(0)"],"cwd":".","required":true}]}]}

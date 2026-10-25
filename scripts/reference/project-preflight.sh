@@ -177,7 +177,14 @@ if has_file .ai-dev-standard.env; then
   mode_line="$(grep -E '^AI_DEV_STANDARD_MODE=' "$PROJECT_DIR/.ai-dev-standard.env" | tail -n 1)"
   mode="${mode_line#AI_DEV_STANDARD_MODE=}"
   case "$mode" in
-    active) add_check "검증 모드: active"; can_code=true ;;
+    active)
+      add_check "검증 모드: active"; can_code=true
+      # active 모드의 전제: 소스 지문 재사용·diff 리뷰·수렴 검사는 Git 저장소 위에서만 작동한다.
+      # .git은 일반 저장소에서 디렉토리, worktree에서 파일이다 — 존재 검사로 둘 다 감지한다.
+      if [ ! -e "$PROJECT_DIR/.git" ]; then
+        add_block "active 모드에는 Git 저장소가 필요합니다 — git init 후 초기 커밋 (증거 지문 재사용·diff 리뷰·수렴 검사의 전제)"
+      fi
+      ;;
     template) add_warning "검증 모드가 template: Bootstrap/Plan은 가능하지만 기능 Coding/READY_FOR_REVIEW는 차단" ;;
     initializing) add_warning "검증 모드가 initializing: 승인된 초기 설정만 가능하며 기능 Coding/READY_FOR_REVIEW는 차단" ;;
     *) add_block ".ai-dev-standard.env의 AI_DEV_STANDARD_MODE 값이 유효하지 않음" ;;
