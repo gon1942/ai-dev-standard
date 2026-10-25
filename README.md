@@ -36,10 +36,12 @@ npm 게시 전 로컬에서는 저장소 루트에서 동일하게 동작한다:
 node bin/ai-dev-standard.js init /path/to/my-project
 ```
 
-### 필수 코드 영향 분석 도구
+### 필수 구성 도구
 
-세션 시작 시 CRG(Code Review Graph)가 없으면 프레임워크 전용 bootstrap venv와 `pipx`로
-`code-review-graph 2.3.9`를 준비한다. 사용자 Python 패키지는 변경하지 않으며, graph는
+- **Ponytail** — 구현 단계의 최소 구현 판단 보조. 스킬 파일로 세 도구(Codex·OpenCode·
+  Claude Code)에 배포되고 구현 계약이 적용을 의무화한다.
+- **CRG(Code Review Graph)** — 세션 시작 시 없으면 프레임워크 전용 bootstrap venv와 `pipx`로
+  `code-review-graph 2.3.9`를 준비한다. 사용자 Python 패키지는 변경하지 않으며, graph는
 세션 시작에 만들지 않는다. 영향 범위 분석이 필요한 Plan·Verify·Review에서만 프로젝트별
 `.code-review-graph/`을 build 또는 update한다.
 
@@ -109,6 +111,36 @@ AI 코딩 도구를 여러 개 쓰거나, 사람과 AI가 같은 프로젝트에
 나중에 다른 사람이나 다른 AI가 봐도 "무엇을 요청했고, 어떤 기준으로 구현했고,
 무엇으로 검증했는지"를 파일에서 확인할 수 있다.
 
+## Task Graph — 작업 의존성 관리
+
+복수 작업의 선행·후행 관계를 Exec Plan에 명시한다. 순환 참조·중복 ID·오타 참조는
+`validate-plan`이 기계적으로 차단한다.
+
+```markdown
+## Task Graph
+
+| Task | 의존 | 소유 파일 | 상태 |
+|---|---|---|---|
+| T1 | — | scripts/a.js | 구현 전 |
+| T2 | T1 | scripts/b.js | 구현 전 |
+```
+
+- **깊이 조건부 의무**: 명세 깊이가 `일반`·`설계 필요`면 데이터 행 1개 이상 필수
+  (없으면 validate 차단). `단순`은 판별 결과 1줄(`Task Graph 판별: 불필요 — <사유>`, 필요 판정이면 `필요 — <사유>`와 함께 섹션 추가)이면 족다.
+- **검증 5종**: Task ID 형식 · 중복 ID · 미정의 의존 참조 · 순환 참조 · 허용 외 상태.
+- **상태 3값**: `구현 전` → `구현 완료`(코드만 끝) → `검증 완료`(증거 확보) —
+  "구현했다"와 "검증됐다"를 섞지 않는다.
+
+## 실행 모드 — 순차가 기본, 병렬은 승인제
+
+- 기본은 `sequential`. 병렬 실행은 판별과 승인이 분리된다:
+  **P1** 무의존 Task 2개 이상 · **P2** 소유 파일·공유 인터페이스·설정·생성 파일 교차 없음 ·
+  **P3** 도구 실측 `verified` (현재 OpenCode — PoC로 검증. Codex·Claude Code `unverified`) ·
+  **P4** 검증 환경 독립(gitignored 데이터·환경변수·외부 서비스 의존 없음)까지가 기계 판별이고,
+  **P5** 사람이 Exec Plan 승인 시 `parallel`을 명시해야 실행된다.
+- 병렬 실행은 worktree별 TDD·로컬 커밋(통합 사전 승인에 포괄 승인) → fast-forward 통합 →
+  **통합 후 전체 재검증** 순서를 따른다 (오케스트레이션 계약).
+
 ## 표준 작업 흐름
 
 ```
@@ -118,7 +150,7 @@ AI 코딩 도구를 여러 개 쓰거나, 사람과 AI가 같은 프로젝트에
   → Git 상태 확인
   → 요청과 관련된 이전 작업만 상세 확인
       ↓
-요청 → Product Spec(AC) + Exec Plan(검증 방법) 초안 → [통합 사전 승인 1회]
+요청 → Product Spec(AC) + Exec Plan(검증 방법) + Task Graph(깊이 일반·설계 필요 필수) 초안 → [통합 사전 승인 1회]
   → RED (기대 동작 실패 테스트 실행·증거 기록)
   → GREEN (최소 구현) → REFACTOR
   → Verification
